@@ -11,10 +11,8 @@ export const YouTubeEmbed = ({ videoId }) => {
   );
 };
 
-export const Link = ({ to, children }) => {
-  return (
-    <a href={to} target="_blank" rel="noopener noreferrer">
-      {children}
-    </a>
-  );
-};
+export const Link = ({ to, className, children }) => (
+  <a href={to} className={className}>
+    {children}
+  </a>
+);

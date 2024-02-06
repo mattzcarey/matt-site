@@ -4,7 +4,8 @@
   "scripts": {
     "dev": "sst bind next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "deploy:prod": "sst deploy --stage prod"
   },
   "dependencies": {
     "clsx": "^1.2.1",

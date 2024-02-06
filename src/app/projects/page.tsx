@@ -13,16 +13,20 @@ const AboutPage = () => {
       <div className="prose prose-neutral dark:prose-invert text-neutral-800 dark:text-neutral-200">
         <p>
           I am the creator of{" "}
-          <Link to="https://github.com/mattzcarey/code-review-gpt">
+          <Link
+            to="https://github.com/mattzcarey/code-review-gpt"
+            className="prose prose-neutral dark:prose-invert text-neutral-800 dark:text-neutral-200"
+          >
             Code Review GPT
           </Link>{" "}
-          and core builder at <Link to="https://www.quivr.app">Quivr</Link>.
-        </p>
-        <p>
-          I also write a weekly newsletter called{" "}
-          <Link to="https://newsletter.quivr.app">Building With GenAI</Link> for
-          people interested in the wonderful and fast moving world of Generative
-          AI.
+          and was a core builder at{" "}
+          <Link
+            to="https://www.quivr.app"
+            className="prose prose-neutral dark:prose-invert text-neutral-800 dark:text-neutral-200"
+          >
+            Quivr
+          </Link>
+          .
         </p>
         <hr className="my-4" />
       </div>
