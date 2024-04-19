@@ -16,10 +16,10 @@ export const metadata: Metadata = {
     default: "Matt Carey",
     template: "%s | Matt Carey",
   },
-  description: "Serverless developer & AWS Community Builder.",
+  description: "AI Engineer & AWS Community Builder.",
   openGraph: {
     title: "Matt Carey",
-    description: "Serverless developer & AWS Community Builder.",
+    description: "AI Engineer & AWS Community Builder.",
     url: "https://mattzcarey.com",
     siteName: "Matt Carey",
     images: [

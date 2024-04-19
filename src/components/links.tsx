@@ -16,3 +16,17 @@ export const Link = ({ to, className, children }) => (
     {children}
   </a>
 );
+
+export const IframeEmbed = ({ src, width, height }) => {
+  return (
+    <iframe
+      src={src}
+      width={width}
+      height={height}
+      style={{border: "1px solid #bfcbda88", borderRadius: "4px"}}
+      allowFullScreen={true}
+      aria-hidden="false"
+      tabIndex={0}
+    ></iframe>
+  );
+};

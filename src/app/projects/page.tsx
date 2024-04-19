@@ -3,10 +3,10 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Projects",
-  description: "Creator of Code Review GPT and core builder at Quivr",
+  description: "Creator of Code Review GPT, founding team at Quivr and building lang.new for my mum.",
 };
 
-const AboutPage = () => {
+const ProjectsPage = () => {
   return (
     <section>
       <h1 className="font-bold text-3xl font-serif">Projects</h1>
@@ -19,14 +19,21 @@ const AboutPage = () => {
           >
             Code Review GPT
           </Link>{" "}
-          and was a core builder at{" "}
+          and was on the founding team at{" "}
           <Link
             to="https://www.quivr.app"
             className="prose prose-neutral dark:prose-invert text-neutral-800 dark:text-neutral-200"
           >
-            Quivr
+            Quivr (YC W24).
           </Link>
-          .
+          <br /><br />Currently building{" "}
+          <Link
+            to="https://lang.new"
+            className="prose prose-neutral dark:prose-invert text-neutral-800 dark:text-neutral-200"
+          >
+            lang.new
+          </Link>{" "}
+          for my mum.
         </p>
         <hr className="my-4" />
       </div>
@@ -38,4 +45,4 @@ const AboutPage = () => {
   );
 };
 
-export default AboutPage;
+export default ProjectsPage;
