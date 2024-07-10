@@ -28,15 +28,15 @@ const CommunityPage = () => {
           </Link>.<br /><br />
           Recently I started a new event series - {" "}
           <Link
-            to="https://www.lu.ma/ai-product-engineering"
+            to="https://www.lu.ma/ai-demo-days"
             className="prose prose-neutral dark:prose-invert text-neutral-800 dark:text-neutral-200"
           >
-            AI Product Engineering, 
+            AI Demo Days, 
           </Link> with the aim to bring together the London AI community to build a place where demos can become companies.
         </p>
         <hr className="my-4" />
         <p>Register for the next event:</p>
-        <IframeEmbed src="https://lu.ma/embed-checkout/evt-F4t96tDYPFPmmUd" width="600" height="450" />
+        <IframeEmbed src="https://lu.ma/embed/event/evt-CHF5z0yZyyApzpa/simple" width="600" height="450" />
       </div>
     </section>
   );
