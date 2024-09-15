@@ -9,7 +9,7 @@ I was invited to share my perspectives as a member of the OpenUK AI advisory boa
 
 ---
 
-Hello all. I am Matt Carey, an AI engineer and a member of the AI community here in London. I will give my views as a practitioner, as an open source contributor, as OpenUK AI advisory board member and as a team lead at a startup building and hiring here in London.
+Good morning. I am Matt Carey, an AI engineer and a member of the AI community here in London. I will give my views as a practitioner, as an open source contributor, as OpenUK AI advisory board member and as a team lead at a startup building and hiring here in London.
 
 A quick note about definitions of AI openness. I find it funny, almost a quirk that open weights are considered open source. I cannot replicate an open weight model from purely the weights alone with no dataset. Therefore imo the 'source' is not really open and that model is effectively a black box. I have no interpretability on decision making and the best I can be is reactive with my observations.
 
