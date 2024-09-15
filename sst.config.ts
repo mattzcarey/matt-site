@@ -12,7 +12,7 @@ export default {
   stacks(app) {
     app.stack(function Site({ stack }) {
       const site = new NextjsSite(stack, "matt-site", {
-        edge: true,
+        edge: false,
         customDomain:
           stack.stage === "prod"
             ? {

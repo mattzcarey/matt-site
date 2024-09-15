@@ -1,8 +1,8 @@
-import "./global.css";
 import clsx from "clsx";
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import Sidebar from "../components/sidebar";
+import "./global.css";
 
 const kaisei = localFont({
   src: "../../public/fonts/kaisei-tokumin-latin-700-normal.woff2",
@@ -16,17 +16,17 @@ export const metadata: Metadata = {
     default: "Matt Carey",
     template: "%s | Matt Carey",
   },
-  description: "AI Engineer & AWS Community Builder.",
+  description: "AI Engineer and Community Builder based in London.",
   openGraph: {
     title: "Matt Carey",
-    description: "AI Engineer & AWS Community Builder.",
+    description: "AI Engineer and Community Builder based in London.",
     url: "https://mattzcarey.com",
     siteName: "Matt Carey",
     images: [
       {
         url: "https://mattzcarey.com/og.jpg",
-        width: 1920,
-        height: 1080,
+        width: 1200,
+        height: 800,
       },
     ],
     locale: "en-GB",
