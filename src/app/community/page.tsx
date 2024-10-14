@@ -36,7 +36,7 @@ const CommunityPage = () => {
         </p>
         <hr className="my-4" />
         <p>Register for the next event:</p>
-        <IframeEmbed src="https://lu.ma/embed/event/evt-CHF5z0yZyyApzpa/simple" width="600" height="450" />
+        <IframeEmbed src="https://lu.ma/embed/event/evt-D882jMDbdqDQ6mp/simple" width="600" height="450" />
       </div>
     </section>
   );
