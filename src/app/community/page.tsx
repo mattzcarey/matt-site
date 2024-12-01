@@ -1,4 +1,4 @@
-import { IframeEmbed, Link } from "components/links";
+import { Link } from "components/links";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -34,9 +34,6 @@ const CommunityPage = () => {
             AI Demo Days, 
           </Link> with the aim to bring together the London AI community to build a place where demos can become companies.
         </p>
-        <hr className="my-4" />
-        <p>Register for the next event:</p>
-        <IframeEmbed src="https://lu.ma/embed/event/evt-D882jMDbdqDQ6mp/simple" width="600" height="450" />
       </div>
     </section>
   );
