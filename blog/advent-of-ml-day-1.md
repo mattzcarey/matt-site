@@ -54,6 +54,7 @@ Remember the "9.8 vs 9.11" example? The problem arises because numbers are often
 This tokenization makes it harder for the model to understand the numerical values as single units, leading to general confusion. The next time you see a language model make an strange mistake, consider if it could be the tokenizer playing tricks.
 
 Happy day 1!
+
 Matt
 
 ---
