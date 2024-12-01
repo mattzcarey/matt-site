@@ -1,4 +1,4 @@
-import { Link, YouTubeEmbed } from "components/links";
+import { Link } from "components/links";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -33,13 +33,9 @@ const ProjectsPage = () => {
           >
             lang.new
           </Link>{" "}
-          for my mum.
+          for my mum. Also working on [a project](https://parliament-wow.threepointone.workers.dev/) to help people understand what is happening in parliament.
         </p>
         <hr className="my-4" />
-      </div>
-      <div className="mt-8">
-        {" "}
-        <YouTubeEmbed videoId="https://www.youtube.com/embed/GWoLU9p461Y" />
       </div>
     </section>
   );

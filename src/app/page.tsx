@@ -29,10 +29,10 @@ export default async function HomePage() {
             className="flex items-center hover:text-neutral-700 dark:hover:text-neutral-200 transition-all"
             rel="noopener noreferrer"
             target="_blank"
-            href="https://twitter.com/mattzcarey"
+            href="https://bsky.app/profile/mattzcarey.com"
           >
             <ArrowIcon />
-            <p className="h-7">follow me on twitter</p>
+            <p className="h-7">follow me on bluesky</p>
           </a>
         </li>
       </ul>

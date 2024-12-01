@@ -56,6 +56,8 @@ This tokenization makes it harder for the model to understand the numerical valu
 Happy day 1!
 Matt
 
+---
+
 Resources:
 
 - [Let's build the GPT Tokenizer - Andrej Karpathy](https://www.youtube.com/watch?v=zduSFxRajkE)

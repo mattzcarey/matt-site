@@ -19,7 +19,6 @@ export const MediumArticles = (): JSX.Element => {
       );
       const data = await res.json();
       const items: MediumItem[] = data.items;
-      console.log(items);
       setItems(items);
     }
     fetchData();
@@ -37,7 +36,7 @@ export const MediumArticles = (): JSX.Element => {
                 className="flex items-center hover:text-neutral-700 dark:hover:text-neutral-200 transition-all"
                 rel="noopener noreferrer"
               >
-                <h3 className="font-bold text-l font-serif">{item.title}</h3>
+                <h3 className="font-bold text-md font-serif">{item.title}</h3>
               </a>
             </MotionWrapper>
           </div>
