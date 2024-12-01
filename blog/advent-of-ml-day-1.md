@@ -3,7 +3,7 @@ title: "Advent of ML Day 1: Tokenizers"
 date: "2024-12-01"
 ---
 
-Why do LLMs gaslit us that there are 2 Rs in Strawberry? Why is it so hard to get the right answer to the questions which is bigger, 9.8 or 9.11? The problem or at least some of the problem, is the fault of a component called a tokenizer.
+Why do LLMs gaslight us that there are 2 Rs in Strawberry? Why is it so hard to get the right answer to the question "which is bigger, 9.8 or 9.11?" The problem, or at least part of the problem, is the fault of a component called a tokenizer.
 
 Neural networks powering LLMs like GPT-4 and Claude Sonnet, ironically given the name large language model, cannot work with sentences very well. A tokenizer's job is to break down text into smaller units that the model can understand. These units, called tokens, can represent words, parts of words, or even individual characters. The most common approach used in modern language models is using an algorithm called Byte Pair Encoding (BPE).
 
