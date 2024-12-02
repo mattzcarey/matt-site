@@ -1,6 +1,7 @@
+import { NewsletterSignup } from 'components/newsletter';
 import fs from 'fs';
-import path from 'path';
 import matter from 'gray-matter';
+import path from 'path';
 import { remark } from 'remark';
 import html from 'remark-html';
 
@@ -25,6 +26,7 @@ export default async function BlogPost({ params }: { params: { slug: string } })
       <h1>{data.title}</h1>
       <p className="text-gray-500">{new Date(data.date).toLocaleDateString()}</p>
       <div dangerouslySetInnerHTML={{ __html: contentHtml }} />
+      <NewsletterSignup />
     </article>
   );
 }
