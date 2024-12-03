@@ -1,3 +1,4 @@
+import BlueskyComments from 'components/bluesky-comments';
 import { NewsletterSignup } from 'components/newsletter';
 import fs from 'fs';
 import matter from 'gray-matter';
@@ -26,6 +27,9 @@ export default async function BlogPost({ params }: { params: { slug: string } })
       <h1>{data.title}</h1>
       <p className="text-gray-500">{new Date(data.date).toLocaleDateString()}</p>
       <div dangerouslySetInnerHTML={{ __html: contentHtml }} />
+      {data.bluesky_post_uri && (
+        <BlueskyComments uri={data.bluesky_post_uri} />
+      )}
       <NewsletterSignup />
     </article>
   );
