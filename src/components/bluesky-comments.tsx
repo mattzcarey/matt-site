@@ -20,6 +20,7 @@ type Reply = {
     likeCount?: number;
     repostCount?: number;
     replyCount?: number;
+    quoteCount?: number;
   };
 };
 
@@ -29,6 +30,7 @@ type Thread = {
     likeCount?: number;
     repostCount?: number;
     replyCount?: number;
+    quoteCount?: number;
   };
 };
 
@@ -41,6 +43,11 @@ const formatUri = (uri: string): string => {
     }
   }
   return uri;
+};
+
+// Helper function to get total reposts
+const getTotalReposts = (post: { repostCount?: number; quoteCount?: number }) => {
+  return (post.repostCount || 0) + (post.quoteCount || 0);
 };
 
 export default function BlueskyComments({ uri }: Pick<CommentOptions, 'uri'>): JSX.Element {
@@ -98,7 +105,7 @@ export default function BlueskyComments({ uri }: Pick<CommentOptions, 'uri'>): J
             <span>💙 {thread.post.likeCount || 0}</span>
           </span>
           <span className="flex items-center gap-1">
-            <span>🔄 {thread.post.repostCount || 0}</span>
+            <span>🔄 {getTotalReposts(thread.post)}</span>
           </span>
           <span className="flex items-center gap-1">
             <span>💬 {thread.post.replyCount || 0}</span>
@@ -136,7 +143,7 @@ export default function BlueskyComments({ uri }: Pick<CommentOptions, 'uri'>): J
             <p className="text-sm text-gray-600 dark:text-gray-300">{reply.post.record.text}</p>
             <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
               <span>💙 {reply.post.likeCount || 0}</span>
-              <span>🔄 {reply.post.repostCount || 0}</span>
+              <span>🔄 {getTotalReposts(reply.post)}</span>
               <span>💬 {reply.post.replyCount || 0}</span>
             </div>
           </div>
