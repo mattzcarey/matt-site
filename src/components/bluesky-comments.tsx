@@ -100,17 +100,6 @@ export default function BlueskyComments({ uri }: Pick<CommentOptions, 'uri'>): J
     <div className="mt-8 space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="text-xl font-semibold">Comments</h3>
-        <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-300">
-          <span className="flex items-center gap-1">
-            <span>💙 {thread.post.likeCount || 0}</span>
-          </span>
-          <span className="flex items-center gap-1">
-            <span>🔄 {getTotalReposts(thread.post)}</span>
-          </span>
-          <span className="flex items-center gap-1">
-            <span>💬 {thread.post.replyCount || 0}</span>
-          </span>
-        </div>
       </div>
       
       <p className="text-sm text-gray-600 dark:text-gray-300">
