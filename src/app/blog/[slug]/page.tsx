@@ -5,6 +5,7 @@ import matter from 'gray-matter';
 import path from 'path';
 import { remark } from 'remark';
 import html from 'remark-html';
+import './prose.css';
 
 export async function generateStaticParams() {
   const blogDir = path.join(process.cwd(), 'blog');
