@@ -1,7 +1,7 @@
 ---
 title: "Advent of ML Day 4: BM25 and Hybrid Search"
 date: "2024-12-04"
-bluesky_post_uri: ""
+bluesky_post_uri: "https://bsky.app/profile/mattzcarey.com/post/3lciimayze227"
 ---
 
 How do search engines actually work? When you type "cute cat videos" into a search bar, what's happening behind the scenes? And why do modern AI companies still use search algorithms from the 1990s?
