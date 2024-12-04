@@ -6,6 +6,29 @@ import path from 'path';
 import { remark } from 'remark';
 import html from 'remark-html';
 import './prose.css';
+import { Metadata } from 'next';
+
+type Props = {
+  params: { slug: string }
+}
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const blogDir = path.join(process.cwd(), 'blog');
+  const filePath = path.join(blogDir, `${params.slug}.md`);
+  const fileContents = fs.readFileSync(filePath, 'utf8');
+  const { data } = matter(fileContents);
+
+  return {
+    title: data.title,
+    openGraph: {
+      images: data.image ? [data.image] : [],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      images: data.image ? [data.image] : [],
+    },
+  };
+}
 
 export async function generateStaticParams() {
   const blogDir = path.join(process.cwd(), 'blog');

@@ -1,6 +1,8 @@
 ---
 title: "Advent of ML Day 1: Tokenizers"
 date: "2024-12-01"
+bluesky_post_uri: "https://bsky.app/profile/mattzcarey.com/post/3lcbk7lkqjk2c"
+image: "/images/og/advent-of-ml-day-1.png"
 ---
 
 Why do LLMs gaslight us that there are 2 Rs in Strawberry? Why is it so hard to get the right answer to the question "which is bigger, 9.8 or 9.11?" The problem, or at least part of the problem, is the fault of a component called a tokenizer.

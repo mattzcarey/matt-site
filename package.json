@@ -5,7 +5,8 @@
     "dev": "sst bind next dev",
     "build": "next build",
     "start": "next start",
-    "deploy:prod": "sst deploy --stage prod"
+    "deploy:prod": "sst deploy --stage prod",
+    "compress-og": "bun run scripts/compress_og.ts"
   },
   "dependencies": {
     "clsx": "^1.2.1",
@@ -29,6 +30,7 @@
     "aws-cdk-lib": "2.132.1",
     "constructs": "10.3.0",
     "postcss": "^8.4.21",
+    "sharp": "^0.33.5",
     "sst": "^2.41.4",
     "tailwindcss": "^3.2.4",
     "typescript": "4.9.4"

@@ -2,6 +2,7 @@
 title: "Advent of ML Day 3: Embeddings"
 date: "2024-12-03"
 bluesky_post_uri: "https://bsky.app/profile/mattzcarey.com/post/3lcftftzqvs2c"
+image: "/images/og/advent-of-ml-day-3.png"
 ---
 
 We hear a lot about generative language models like Claude Sonnet and GPT-4, or open-source alternatives like the new QwQ models. However, there's a class of models we don't hear much about: embeddings models.
