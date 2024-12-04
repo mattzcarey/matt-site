@@ -2,15 +2,15 @@ import BlueskyComments from 'components/bluesky-comments';
 import { NewsletterSignup } from 'components/newsletter';
 import fs from 'fs';
 import matter from 'gray-matter';
+import 'katex/dist/katex.min.css';
+import { Metadata } from 'next';
 import path from 'path';
+import rehypeKatex from 'rehype-katex';
+import rehypeStringify from 'rehype-stringify';
 import { remark } from 'remark';
 import remarkMath from 'remark-math';
 import remarkRehype from 'remark-rehype';
-import rehypeKatex from 'rehype-katex';
-import rehypeStringify from 'rehype-stringify';
 import './prose.css';
-import 'katex/dist/katex.min.css';
-import { Metadata } from 'next';
 
 type Props = {
   params: { slug: string }
@@ -64,7 +64,7 @@ export default async function BlogPost({ params }: { params: { slug: string } })
   const contentHtml = processedContent.toString();
 
   return (
-    <article className="prose prose-neutral dark:prose-invert mx-auto">
+    <article className="prose prose-neutral dark:prose-invert w-full max-w-none">
       <h1>{data.title}</h1>
       <p className="text-gray-500">{new Date(data.date).toLocaleDateString()}</p>
       <div dangerouslySetInnerHTML={{ __html: contentHtml }} />
