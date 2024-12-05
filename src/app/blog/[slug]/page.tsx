@@ -10,6 +10,7 @@ import rehypeStringify from 'rehype-stringify';
 import { remark } from 'remark';
 import remarkMath from 'remark-math';
 import remarkRehype from 'remark-rehype';
+import rehypeImg from 'rehype-img-size';
 import './prose.css';
 
 type Props = {
@@ -58,6 +59,7 @@ export default async function BlogPost({ params }: { params: { slug: string } })
     .use(remarkMath)
     .use(remarkRehype)
     .use(rehypeKatex)
+    .use(rehypeImg, { dir: 'public' })
     .use(rehypeStringify)
     .process(content);
     
