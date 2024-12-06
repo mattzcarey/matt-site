@@ -30,16 +30,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   return {
     title: {
-      absolute: `${data.title} | Matt Carey`,
+      absolute: `${data.title} | Matt's Blog`,
     },
     description: data.description || "AI Engineer and Community Builder based in London.",
     keywords: data.tags || ["AI", "Machine Learning", "Engineering"],
     authors: [{ name: "Matt Carey" }],
     openGraph: {
-      title: data.title,
+      title: data.title + " | Matt's Blog",
       description: data.description || "AI Engineer and Community Builder based in London.",
       url: canonicalUrl,
-      siteName: "Matt Carey's Blog",
+      siteName: "Matt Carey",
       images: [{
         url: imageUrl,
         width: 1200,
@@ -53,7 +53,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     },
     twitter: {
       card: "summary_large_image",
-      title: data.title,
+      title: data.title + " | Matt's Blog",
       description: data.description || "AI Engineer and Community Builder based in London.",
       images: [imageUrl],
       creator: "@mattzcarey",
