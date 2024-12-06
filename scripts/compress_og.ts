@@ -4,6 +4,7 @@ import sharp from "sharp";
 
 const imagesDir = path.join(process.cwd(), "public/images/og");
 const maxWidth = 1200;
+const maxHeight = 630;
 
 const SUPPORTED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
 
@@ -14,7 +15,10 @@ const processImage = async (filePath: string): Promise<void> => {
 
   try {
     await sharp(filePath)
-      .resize({ width: maxWidth })
+      .resize(maxWidth, maxHeight, {
+        fit: 'contain',
+        background: { r: 255, g: 255, b: 255, alpha: 1 }
+      })
       .toFile(outputFilePath);
     
     fs.unlinkSync(filePath);

@@ -5,12 +5,12 @@ import matter from 'gray-matter';
 import 'katex/dist/katex.min.css';
 import { Metadata } from 'next';
 import path from 'path';
+import rehypeImg from 'rehype-img-size';
 import rehypeKatex from 'rehype-katex';
 import rehypeStringify from 'rehype-stringify';
 import { remark } from 'remark';
 import remarkMath from 'remark-math';
 import remarkRehype from 'remark-rehype';
-import rehypeImg from 'rehype-img-size';
 import './prose.css';
 
 type Props = {
@@ -23,21 +23,44 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const fileContents = fs.readFileSync(filePath, 'utf8');
   const { data } = matter(fileContents);
 
+  const baseUrl = 'https://mattzcarey.com';
+  const imageUrl = data.image ? 
+    `${baseUrl}${data.image}` : `${baseUrl}/og.jpg`;
+  const canonicalUrl = `${baseUrl}/blog/${params.slug}`;
+
   return {
-    title: data.title,
-    ...(data.image ? {
-      openGraph: {
-        images: [data.image],
-      },
-      twitter: {
-        card: 'summary_large_image',
-        images: [data.image],
-      },
-    } : {
-      twitter: {
-        card: 'summary',
-      },
-    }),
+    title: {
+      absolute: `${data.title} | Matt Carey`,
+    },
+    description: data.description || "AI Engineer and Community Builder based in London.",
+    keywords: data.tags || ["AI", "Machine Learning", "Engineering"],
+    authors: [{ name: "Matt Carey" }],
+    openGraph: {
+      title: data.title,
+      description: data.description || "AI Engineer and Community Builder based in London.",
+      url: canonicalUrl,
+      siteName: "Matt Carey's Blog",
+      images: [{
+        url: imageUrl,
+        width: 1200,
+        height: 630,
+        alt: data.title,
+      }],
+      locale: "en-GB",
+      type: "article",
+      publishedTime: data.date,
+      authors: ["Matt Carey"],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: data.title,
+      description: data.description || "AI Engineer and Community Builder based in London.",
+      images: [imageUrl],
+      creator: "@mattzcarey",
+    },
+    alternates: {
+      canonical: canonicalUrl,
+    },
   };
 }
 
