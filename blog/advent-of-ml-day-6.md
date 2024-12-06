@@ -13,7 +13,7 @@ The changes feel good - response times are slower but within threshold, and the 
 
 ## AI Testing
 
-If you're coming from a software engineering background, the way people work in AI and ML might feel quite alien. It often seems like everyone is playing in notebooks rather than working on production systems. That's because the data flow in these systems is actually not that complex - take some data from somewhere, store some indexes in a DB, and at runtime query and send it to an LLM.
+If you're coming from a software engineering background, the way people work in AI and ML might feel quite alien. It often seems like everyone is playing in notebooks rather than working on production systems. That's because the logic flow in these systems is normally not that complex - take some data from somewhere, store some indexes in a DB, and at runtime query and send it to an LLM.
 
 However, it's the knowledge and insight to build the right system that is hard to come by. As everyone has been telling me for the past two years, AI demos very well but production is hard. How do you handle adversarial questions? How do you handle hallucinations? How do you handle data drift? What do you do when your user uploads an 8,500-page PDF file of handwritten notes?
 
