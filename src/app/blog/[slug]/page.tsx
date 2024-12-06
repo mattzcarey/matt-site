@@ -92,6 +92,15 @@ export default async function BlogPost({ params }: { params: { slug: string } })
     <article className="prose prose-neutral dark:prose-invert w-full max-w-none">
       <h1>{data.title}</h1>
       <p className="text-gray-500">{new Date(data.date).toLocaleDateString()}</p>
+      {data.image && (
+        <div className="flex justify-center">
+          <img 
+            src={data.image} 
+            alt={data.title}
+            className="rounded-lg max-h-[400px] object-cover"
+          />
+        </div>
+      )}
       <div dangerouslySetInnerHTML={{ __html: contentHtml }} />
       {data.bluesky_post_uri && (
         <BlueskyComments uri={data.bluesky_post_uri} />
