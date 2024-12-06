@@ -66,3 +66,4 @@ Resources:
 - [Let's build the GPT Tokenizer - Andrej Karpathy](https://www.youtube.com/watch?v=zduSFxRajkE)
 - [Tokenization counts: the impact of tokenization on arithmetic in frontier LLMs - Aaditya K. Singh, DJ Strouse](https://arxiv.org/abs/2402.14903)
 - [Tiktoken - Github](https://github.com/openai/tiktoken)
+- [_(NEW)_ Number Tokenization - Hugging Face](https://huggingface.co/spaces/huggingface/number-tokenization-blog)
