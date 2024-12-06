@@ -42,7 +42,7 @@ If you're using rerankers (from [Day 5](./advent-of-ml-day-5.md)), track the ave
 - Changes in user query patterns
 - Issues with your embedding model
 
-### 3. LLM-as-a-Judge 
+### 3. LLM-as-a-Judge
 
 LLM-as-a-judge isn't a silver bullet. Here are some guidelines:
 
@@ -125,5 +125,5 @@ Resources:
 - [Your AI Product Needs Evals - Hamel Hussain](https://hamel.dev/blog/posts/evals/)
 - [Applied LLMs - Evaluation Monitoring](https://applied-llms.org/#evaluation-monitoring)
 - [LLM Judge - Hamel's Blog](https://hamel.dev/blog/posts/llm-judge/)
-- [Who Validates the Validators? - Shreya Shankar et al.](https://arxiv.org/abs/2311.11556)
-- [How Dosu Used LangSmith for Continual Learning](https://blog.langchain.dev/continuous-learning/)
+- [Who Validates the Validators? - Shreya Shankar et al.](https://arxiv.org/abs/2404.12272)
+- [How Dosu Used LangSmith for Continual Learning](https://blog.langchain.dev/dosu-langsmith-no-prompt-eng/)
