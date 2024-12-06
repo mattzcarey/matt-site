@@ -2,6 +2,7 @@
 title: "Advent of ML Day 6: Measuring Success"
 date: "2024-12-06"
 image: "/images/og/advent-of-ml-day-6.png"
+bluesky_post_uri: "https://bsky.app/profile/mattzcarey.com/post/3lcnnhudre22f"
 ---
 
 How do you know if your AI system is working? What metrics should you track? When should you use LLM-as-a-judge? Over the past few days, we've explored various components of AI systems - from tokenizers to embeddings to hybrid search. Today, we'll tackle the crucial but often overlooked topic of evaluation.
