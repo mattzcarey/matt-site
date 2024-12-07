@@ -2,6 +2,7 @@
 title: "Advent of ML Day 7: Transformers"
 date: "2024-12-07"
 image: "/images/og/advent-of-ml-day-7.png"
+bluesky_post_uri: "https://bsky.app/profile/mattzcarey.com/post/3lcpotndtlk2j"
 ---
 
 How did we get from simple neural networks to the powerful language models of today? What actually is a transformer? Today, we're having a look into the architecture that revolutionized natural language processing and laid the foundation for modern AI.
