@@ -102,7 +102,7 @@ export default async function BlogPost({ params }: { params: { slug: string } })
           />
         </div>
       )}
-      <ElevenLabsAudioNative publicUserId='"d9ac654064df1d8d2ace9a730b19fc2ffa05fa2d985d7acc665a5259b7aca2c'/>
+      <ElevenLabsAudioNative publicUserId='d9ac654064df1d8d2ace9a730b19fc2ffa05fa2d985d7acc665a5259b7aca2c3'/>
       <div dangerouslySetInnerHTML={{ __html: contentHtml }} />
       {data.bluesky_post_uri && (
         <BlueskyComments uri={data.bluesky_post_uri} />
