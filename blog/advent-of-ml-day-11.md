@@ -2,7 +2,7 @@
 title: "Advent of ML Day 11: Test Time Compute"
 date: "2024-12-11"
 image: "/images/og/advent-of-ml-day-11.png"
-bluesky_post_uri: “”
+bluesky_post_uri: “https://bsky.app/profile/mattzcarey.com/post/3ld4mrgrmr22s”
 ---
 
 _Quick Note: Day 11 of Advent of ML is kindly sponsored by [ElevenLabs](https://elevenlabs.io/mattzcarey). You can now listen to this post, as well as the rest of the Advent of ML series, read aloud by AI-generated Matt._
