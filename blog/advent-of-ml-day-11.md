@@ -44,22 +44,17 @@ The key insight was using the LLM not to solve the problem directly, but to guid
 
 MindsAI pioneered a different strategy that showed the power of real-time adaptation:
 
-- Fine-tune the model specifically on each puzzle's examples
-- Use data augmentation to create additional training cases
+- Generate additional variations of the example problems
 - Apply stability-based selection criteria to validate solutions
-- Allow the model to adapt its internal representations to each task
+- Additional fine-tuning is performed on these specific transformations
 
 This "test-time training" proved that models could effectively learn from just a few examples during inference, challenging the traditional fixed-model paradigm.
 
 ### Hybrid Approaches
 
-The most successful teams, like the ARChitects (53.5%), recognized that different puzzles needed different strategies:
+The most successful team, ARChitects - 53.5%, recognized that different puzzles needed different strategies. They used a combination of heuristics to determine the best approach for each puzzle. Then they used a combined method of program synthesis with direct prediction (input + task description => solution) and applied these multiple solving strategies in parallel.
 
-- Use heuristics to determine the best approach for each puzzle
-- Combine program synthesis with direct prediction using a transductive model
-- Apply multiple solving strategies in parallel
-
-### Fine-tuning on the Fly
+### Selective Information Fine-Tuning
 
 Although not applied to ARC (yet), there is a new paper from Jonas Hubotter et al. at ETH Zurich, Switzerland which shows a new approach to test-time compute scaling. They call it Selective Information Fine-Tuning (SIFT). Similarly to the MindsAI approach on ARC, SIFT allows models to learn and adapt during use by performing some training of the model on the fly. The key innovation is how it selects what to learn from - optimizing for information gain rather than just similarity.
 
