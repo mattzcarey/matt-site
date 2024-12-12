@@ -74,11 +74,13 @@ However, important limitations remain. Even infinite compute time cannot overcom
 
 Real-world applications face several practical challenges. Program synthesis approaches face exponentially growing costs as program size increases. Test-time training requires significant computation for each example. Perhaps most challengingly, verification remains difficult - determining whether a solution is correct often requires either expensive computation or imperfect heuristics. These imperfect verifiers place an upper bound on achievable accuracy.
 
-The massive increase in performance in ARC-AGI during 2024 suggests we're at an interesting inflection point in AI development. While we still haven't achieved human-level reasoning (humans easily score 97-98% compared to the current best of 55.5%), we're seeing new approaches that look more like genuine problem-solving than pure pattern matching. And the stand out technique has been scaling at test time, whether by generating samples or training or a combination of both.
+## Future of Reasoning
+
+The massive increase in performance in ARC-AGI during 2024 suggests we're at an interesting inflection point in AI development. While we still haven't achieved human-level reasoning (humans easily score 97-98% compared to the current best of 55.5%), we're seeing new approaches that look more like genuine problem-solving.
 
 Perhaps most importantly, these developments are forcing us to reconsider what we mean by "intelligence." Instead of just building bigger pattern-matching machines, we're starting to create systems that can actually explore, reason, and learn from their attempts - even if it takes a little more compute at run time.
 
-Personally, I am interested in seeing how these techniques will be used by developers to build more intelligent application and whether the compute requirements for AI will shift from the current training dominated allocation to a more balanced allocation with test time compute being another control knob to dial in.
+Personally, I am interested in seeing how test time scaling will be used by developers to build more intelligent application. Will the compute requirements for AI shift from the current training dominated allocation to a more balanced allocation with test time compute being another control knob to dial in? Could be interesting, especially for the Nvidia stock price :)
 
 Happy day 11!
 
