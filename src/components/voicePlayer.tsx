@@ -41,7 +41,7 @@ export const ElevenLabsAudioNative = ({
         data-textcolor={textColorRgba ?? 'rgba(0, 0, 0, 1.0)'}
         data-backgroundcolor={backgroundColorRgba ?? 'rgba(255, 255, 255, 1.0)'}
         >
-        {children ? children : 'Elevenlabs AudioNative Player'}
+        {children}
         </div>
     );
 };

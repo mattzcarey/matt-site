@@ -1,6 +1,6 @@
 import BlueskyComments from 'components/bluesky-comments';
-import ElevenLabsAudioNative from 'components/elevenLabsPlayer';
-import { NewsletterSignup } from 'components/newsletter';
+import NewsletterSignup from 'components/newsletter';
+import ElevenLabsAudioNative from 'components/voicePlayer';
 import fs from 'fs';
 import matter from 'gray-matter';
 import 'katex/dist/katex.min.css';
@@ -94,7 +94,7 @@ export default async function BlogPost({ params }: { params: { slug: string } })
       <h1>{data.title}</h1>
       <p className="text-gray-500">{new Date(data.date).toLocaleDateString()}</p>
       {data.image && (
-        <div className="flex justify-center">
+        <div className="flex justify-center mb-8">
           <img 
             src={data.image} 
             alt={data.title}
@@ -102,7 +102,12 @@ export default async function BlogPost({ params }: { params: { slug: string } })
           />
         </div>
       )}
-      <ElevenLabsAudioNative publicUserId='d9ac654064df1d8d2ace9a730b19fc2ffa05fa2d985d7acc665a5259b7aca2c3'/>
+      <div className="mb-8">
+        <ElevenLabsAudioNative 
+          publicUserId="d9ac654064df1d8d2ace9a730b19fc2ffa05fa2d985d7acc665a5259b7aca2c3" 
+          size="small" 
+        />
+      </div>
       <div dangerouslySetInnerHTML={{ __html: contentHtml }} />
       {data.bluesky_post_uri && (
         <BlueskyComments uri={data.bluesky_post_uri} />
