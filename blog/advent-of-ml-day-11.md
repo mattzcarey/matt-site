@@ -5,7 +5,7 @@ image: "/images/og/advent-of-ml-day-11.png"
 bluesky_post_uri: “https://bsky.app/profile/mattzcarey.com/post/3ld4mrgrmr22s”
 ---
 
-_Quick Note: Day 11 of Advent of ML is kindly sponsored by [ElevenLabs](https://elevenlabs.io/mattzcarey). You can now listen to this post, as well as the rest of the Advent of ML series, read aloud by AI-generated Matt._
+_Quick Note: Day 11 of Advent of ML is kindly sponsored by [ElevenLabs](https://elevenlabs.io). You can now listen to this post, as well as the rest of the Advent of ML series, read aloud by AI-generated Matt._
 
 Imagine you're taking a difficult math test. Would you perform better if you had a bigger brain, or if you had more time to think about a problem? This isn't just a weird philosophical question - it's at the heart of some interesting research in artificial intelligence: scaling of computational resources at test time.
 
@@ -24,6 +24,10 @@ Large Language Monkeys also found that the relationship between coverage and the
 In research circles there is still a lot of debate about whether models actually 'reason'. One of the more popular benchmarks used to test reasoning is the Abstraction and Reasoning Corpus for Artificial General Intelligence (ARC-AGI or just ARC). When François Chollet created ARC in 2019, he was trying to prove a point about AI's limitations. His stance is that AI systems aren't really thinking at all. They are pattern matching machines and true intelligence isn't about pattern matching - it's about being able to derive novel solutions.
 
 The ARC-AGI presented deceptively simple visual puzzles that required discovering underlying rules from just a few examples. They are really quite easy for humans. However, for the last few years, AI progress was slow. From 2020 to early 2024, the top score only increased from 20% to 33%. Even as language models got dramatically better at other tasks, they remained stumped by ARC. The original GPT-3 scored 0% via direct prompting.
+
+![ARC-AGI](/images/arc-agi.png)
+
+_picture credit: [ARC Prize 2024: Technical Report](https://arcprize.org/media/arc-prize-2024-technical-report.pdf)_
 
 ## Paths to Better Reasoning
 
