@@ -25,9 +25,9 @@ In research circles there is still a lot of debate about whether models actually
 
 The ARC-AGI presented deceptively simple visual puzzles that required discovering underlying rules from just a few examples. They are really quite easy for humans. However, for the last few years, AI progress was slow. From 2020 to early 2024, the top score only increased from 20% to 33%. Even as language models got dramatically better at other tasks, they remained stumped by ARC. The original GPT-3 scored 0% via direct prompting.
 
-But 2024 brought several breakthroughs, primarily based on the idea of scaling at test time and it has become a major test bed of these approaches to reasoning. During the 2024 ARC Prize competition (a $1 million prize to beat and open-source a solution to ARC-AGI), scores jumped dramatically, with MindsAI achieving 55.5% on the private evaluation set.
-
 ## Paths to Better Reasoning
+
+The year 2024 witnessed significant breakthroughs in ARC scores, primarily driven by the concept of scaling at test time. During the 2024 ARC Prize competition, a $1 million challenge to surpass and open-source a solution to ARC-AGI, scores improved dramatically, with MindsAI achieving an impressive 55.5% on the private evaluation set. The most successful strategies can be summarized into three categories, which are explored in more detail in the ARC Prize 2024 technical report.
 
 ### Deep Learning-Guided Program Synthesis
 
