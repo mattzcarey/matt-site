@@ -58,7 +58,7 @@ The most successful team, ARChitects - 53.5%, recognized that different puzzles 
 
 Although not applied to ARC (yet), there is a new paper from Jonas Hubotter et al. at ETH Zurich, Switzerland which shows a new approach to test-time compute scaling. They call it Selective Information Fine-Tuning (SIFT). Similarly to the MindsAI approach on ARC, SIFT allows models to learn and adapt during use by performing some training of the model on the fly. The key innovation is how it selects what to learn from - optimizing for information gain rather than just similarity.
 
-Whereas test time training (TTT) generates a new training set from each example, SIFT uses an external corpus of data from which it selects specific fine-tuning examples. This approach should be much more generally applicsble to problems where you have an external corpus of data already available.
+Whereas test time training (TTT) generates a new training set from each example, SIFT uses an external corpus of data from which it selects specific fine-tuning examples. This approach should be much more generally applicable to problems where you have an external corpus of data already available.
 
 ## Learnings from ARC 2024
 
