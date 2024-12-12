@@ -27,7 +27,10 @@ The ARC-AGI presented deceptively simple visual puzzles that required discoverin
 
 ![ARC-AGI](/images/arc-agi.png)
 
+Example ARC-AGI task (0ca9ddb6)
+
 _picture credit: [ARC Prize 2024: Technical Report](https://arcprize.org/media/arc-prize-2024-technical-report.pdf)_
+
 
 ## Paths to Better Reasoning
 
