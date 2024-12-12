@@ -65,51 +65,19 @@ Although not applied to ARC (yet), there is a new paper from Jonas Hubotter et a
 
 Whereas test time training (TTT) generates a new training set from each example, SIFT uses an external corpus of data from which it selects specific fine-tuning examples. This approach should be much more generally applicsble to problems where you have an external corpus of data already available.
 
-## Test Time Scaling Learnings from ARC
+## Learnings from ARC 2024
 
-This year we saw some interesting learnings from ARC in terms of test time scaling.
+The ARC challenge revealed a fundamental trade-off in how computation time can be used through this new scaling law. Program synthesis approaches excel at problems with precise, rule-based answers, but their cost grows exponentially with program complexity. Test-time training, on the other hand, shows particular strength in pattern recognition tasks by fine-tuning on specific examples during inference. The most successful systems learned to combine both approaches.
 
-### Compute-Optimal Scaling
+However, important limitations remain. Even infinite compute time cannot overcome a model's basic limitations - if a model lacks the architectural capacity or training to understand certain concepts, no amount of test-time computation will help. A model's base quality strongly influences its maximum achievable performance through test-time compute, suggesting these techniques amplify existing capabilities rather than creating new ones.
 
-- A smaller model with more compute time can outperform a model 14x larger
-- Optimal compute allocation varies by problem difficulty
-- Performance improvements scale logarithmically with compute time
+Real-world applications face several practical challenges. Program synthesis approaches face exponentially growing costs as program size increases. Test-time training requires significant computation for each example. Perhaps most challengingly, verification remains difficult - determining whether a solution is correct often requires either expensive computation or imperfect heuristics. These imperfect verifiers place an upper bound on achievable accuracy.
 
-### Search vs. Adaptation Trade-offs
-
-- Program search excels at precise, rule-based problems
-- Test-time training works better for pattern recognition
-- Hybrid approaches can dynamically choose the best strategy
-
-### Resource Allocation
-
-- Different puzzles benefit from different amounts of computation
-- Adaptive strategies can determine optimal compute investment
-- Performance gains must be balanced against computational cost
-
-## The Limits of Reasoning
-
-### Computational Boundaries
-
-- Even infinite compute can't overcome fundamental model limitations
-- Base model quality strongly influences maximum achievable performance
-- Some problems remain intractable regardless of compute time
-
-### Scalability Challenges
-
-- Program synthesis costs grow exponentially with program size
-- Test-time training requires significant computation per example
-- Real-world applications need careful efficiency optimization
-
-### Verification Difficulties
-
-- Determining if a solution is correct remains challenging in many use cases
-- Imperfect verifiers limit maximum achievable accuracy
-- Edge cases can be hard to detect and validate
-
-The ARC Prize results suggest we're at an interesting inflection point in AI development. While we still haven't achieved human-level reasoning (the challenge's creators scored 97-98% compared to the current best of 55.5%), we're seeing new approaches that look more like genuine problem-solving than pure pattern matching. And the stand out technique has been scaling at test time, whether by generating samples or training or a combination of both.
+The massive increase in performance in ARC-AGI during 2024 suggests we're at an interesting inflection point in AI development. While we still haven't achieved human-level reasoning (humans easily score 97-98% compared to the current best of 55.5%), we're seeing new approaches that look more like genuine problem-solving than pure pattern matching. And the stand out technique has been scaling at test time, whether by generating samples or training or a combination of both.
 
 Perhaps most importantly, these developments are forcing us to reconsider what we mean by "intelligence." Instead of just building bigger pattern-matching machines, we're starting to create systems that can actually explore, reason, and learn from their attempts - even if it takes a little more compute at run time.
+
+Personally, I am interested in seeing how these techniques will be used by developers to build more intelligent application and whether the compute requirements for AI will shift from the current training dominated allocation to a more balanced allocation with test time compute being another control knob to dial in.
 
 Happy day 11!
 
