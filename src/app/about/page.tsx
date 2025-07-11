@@ -13,9 +13,9 @@ export default function AboutPage() {
       <h1 className="font-bold text-3xl font-serif">About Me</h1>
       <div className="my-5 prose prose-neutral text-neutral-800 dark:text-neutral-200">
         <p>
-          I am an AI engineer at{" "}
+          I am a Founding Engineer at{" "}
           <Link
-            to="https://github.com/mattzcarey/code-review-gpt"
+            to="https://stackone.com"
             className="my-5 prose prose-neutral text-neutral-800 dark:text-neutral-200"
           >
             StackOne

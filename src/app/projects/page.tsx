@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Projects",
   description:
-    "Creator of Code Review GPT, founding team at Quivr and building lang.new for my mum.",
+    "Creator of Shippie, an extensible AI code review tool, and founding team at Quivr (YC W24).",
 };
 
 const ProjectsPage = () => {
@@ -15,10 +15,10 @@ const ProjectsPage = () => {
         <p>
           I am the creator of{" "}
           <Link
-            to="https://github.com/mattzcarey/code-review-gpt"
+            to="https://github.com/mattzcarey/shippie"
             className="prose prose-neutral dark:prose-invert text-neutral-800 dark:text-neutral-200"
           >
-            Code Review GPT
+            Shippie, an extensible AI code review tool,
           </Link>{" "}
           and was on the founding team at{" "}
           <Link
@@ -28,17 +28,6 @@ const ProjectsPage = () => {
             Quivr (YC W24).
           </Link>
           <br />
-          <br />
-          Currently building{" "}
-          <Link
-            to="https://lang.new"
-            className="prose prose-neutral dark:prose-invert text-neutral-800 dark:text-neutral-200"
-          >
-            lang.new
-          </Link>{" "}
-          for my mum. Also working on [a
-          project](https://parliament-wow.threepointone.workers.dev/) to help
-          people understand what is happening in parliament.
         </p>
         <hr className="my-4" />
       </div>
