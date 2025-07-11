@@ -1,11 +1,10 @@
 import BlueskyComments from "@/components/bluesky-comments";
 import NewsletterSignup from "@/components/newsletter";
 import ElevenLabsAudioNative from "@/components/voicePlayer";
-import fs from "fs";
-import matter from "gray-matter";
+import { getBlogPost, getAllBlogSlugs } from "@/lib/blog";
 import "katex/dist/katex.min.css";
 import { Metadata } from "next";
-import path from "path";
+import { notFound } from "next/navigation";
 import rehypeImg from "rehype-img-size";
 import rehypeKatex from "rehype-katex";
 import rehypeStringify from "rehype-stringify";
@@ -20,27 +19,30 @@ type Props = {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  const blogDir = path.join(process.cwd(), "blog");
-  const filePath = path.join(blogDir, `${slug}.md`);
-  const fileContents = fs.readFileSync(filePath, "utf8");
-  const { data } = matter(fileContents);
+  const post = getBlogPost(slug);
+  
+  if (!post) {
+    return {
+      title: "Post Not Found",
+    };
+  }
 
   const baseUrl = "https://mattzcarey.com";
-  const imageUrl = data.image ? `${baseUrl}${data.image}` : `${baseUrl}/og.jpg`;
+  const imageUrl = post.image ? `${baseUrl}${post.image}` : `${baseUrl}/og.jpg`;
   const canonicalUrl = `${baseUrl}/blog/${slug}`;
 
   return {
     title: {
-      absolute: `${data.title} | Matt's Blog`,
+      absolute: `${post.title} | Matt's Blog`,
     },
     description:
-      data.description || "AI Engineer and Community Builder based in London.",
-    keywords: data.tags || ["AI", "Machine Learning", "Engineering"],
+      post.description || "AI Engineer and Community Builder based in London.",
+    keywords: post.tags || ["AI", "Machine Learning", "Engineering"],
     authors: [{ name: "Matt Carey" }],
     openGraph: {
-      title: data.title + " | Matt's Blog",
+      title: post.title + " | Matt's Blog",
       description:
-        data.description ||
+        post.description ||
         "AI Engineer and Community Builder based in London.",
       url: canonicalUrl,
       siteName: "Matt Carey",
@@ -49,19 +51,19 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
           url: imageUrl,
           width: 1200,
           height: 630,
-          alt: data.title,
+          alt: post.title,
         },
       ],
       locale: "en-GB",
       type: "article",
-      publishedTime: data.date,
+      publishedTime: post.date,
       authors: ["Matt Carey"],
     },
     twitter: {
       card: "summary_large_image",
-      title: data.title + " | Matt's Blog",
+      title: post.title + " | Matt's Blog",
       description:
-        data.description ||
+        post.description ||
         "AI Engineer and Community Builder based in London.",
       images: [imageUrl],
       creator: "@mattzcarey",
@@ -73,10 +75,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export async function generateStaticParams() {
-  const blogDir = path.join(process.cwd(), "blog");
-  const files = fs.readdirSync(blogDir);
-  return files.map((filename) => ({
-    slug: filename.replace(".md", ""),
+  const slugs = getAllBlogSlugs();
+  return slugs.map((slug) => ({
+    slug,
   }));
 }
 
@@ -86,10 +87,11 @@ export default async function BlogPost({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const blogDir = path.join(process.cwd(), "blog");
-  const filePath = path.join(blogDir, `${slug}.md`);
-  const fileContents = fs.readFileSync(filePath, "utf8");
-  const { data, content } = matter(fileContents);
+  const post = getBlogPost(slug);
+  
+  if (!post) {
+    notFound();
+  }
 
   const processedContent = await remark()
     .use(remarkMath)
@@ -97,21 +99,21 @@ export default async function BlogPost({
     .use(rehypeKatex)
     .use(rehypeImg, { dir: "public" })
     .use(rehypeStringify)
-    .process(content);
+    .process(post.content);
 
   const contentHtml = processedContent.toString();
 
   return (
     <article className="prose prose-neutral dark:prose-invert w-full max-w-none">
-      <h1>{data.title}</h1>
+      <h1>{post.title}</h1>
       <p className="text-gray-500">
-        {new Date(data.date).toLocaleDateString()}
+        {new Date(post.date).toLocaleDateString()}
       </p>
-      {data.image && (
+      {post.image && (
         <div className="flex justify-center mb-8">
           <img
-            src={data.image}
-            alt={data.title}
+            src={post.image}
+            alt={post.title}
             className="rounded-lg max-h-[400px] object-cover"
           />
         </div>
@@ -123,7 +125,7 @@ export default async function BlogPost({
         />
       </div>
       <div dangerouslySetInnerHTML={{ __html: contentHtml }} />
-      {data.bluesky_post_uri && <BlueskyComments uri={data.bluesky_post_uri} />}
+      {post.bluesky_post_uri && <BlueskyComments uri={post.bluesky_post_uri} />}
       <NewsletterSignup />
     </article>
   );
