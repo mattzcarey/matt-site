@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Link } from "../../components/links";
+import { Link } from "@/components/links";
 import { Footer } from "./footer";
 
 export const metadata: Metadata = {
@@ -39,7 +39,7 @@ export default function AboutPage() {
           international stage.
         </p>
         <p>
-          Outside of tech and sport, I'm an advocate for sustainability and the
+          Outside of tech and sport, I&apos;m an advocate for sustainability and the
           plant-based movement.
         </p>
         <hr />

@@ -1,5 +1,5 @@
-'use client';
-import { useEffect, useState } from 'react';
+"use client";
+import { useEffect, useState } from "react";
 
 interface CommentOptions {
   uri: string;
@@ -35,7 +35,7 @@ type Thread = {
 };
 
 const formatUri = (uri: string): string => {
-  if (!uri.startsWith('at://') && uri.includes('bsky.app/profile/')) {
+  if (!uri.startsWith("at://") && uri.includes("bsky.app/profile/")) {
     const match = uri.match(/profile\/([\w.]+)\/post\/([\w]+)/);
     if (match) {
       const [, handle, postId] = match;
@@ -46,11 +46,14 @@ const formatUri = (uri: string): string => {
 };
 
 // Helper function to get total reposts
-const getTotalReposts = (post: { repostCount?: number; quoteCount?: number }) => {
+const getTotalReposts = (post: {
+  repostCount?: number;
+  quoteCount?: number;
+}) => {
   return (post.repostCount || 0) + (post.quoteCount || 0);
 };
 
-export default function BlueskyComments({ uri }: Pick<CommentOptions, 'uri'>): JSX.Element {
+export default function BlueskyComments({ uri }: Pick<CommentOptions, "uri">) {
   const [thread, setThread] = useState<Thread | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -62,22 +65,22 @@ export default function BlueskyComments({ uri }: Pick<CommentOptions, 'uri'>): J
         const res = await fetch(
           `https://public.api.bsky.app/xrpc/app.bsky.feed.getPostThread?${params.toString()}`,
           {
-            method: 'GET',
+            method: "GET",
             headers: {
-              "Accept": "application/json",
+              Accept: "application/json",
             },
             cache: "no-store",
-          }
+          },
         );
 
         if (!res.ok) {
           throw new Error("Failed to fetch comments");
         }
 
-        const data = await res.json();
+        const data = await res.json() as { thread: Thread };
         setThread(data.thread);
       } catch (e) {
-        setError(e instanceof Error ? e.message : 'Failed to load comments');
+        setError(e instanceof Error ? e.message : "Failed to load comments");
       }
     };
 
@@ -94,17 +97,22 @@ export default function BlueskyComments({ uri }: Pick<CommentOptions, 'uri'>): J
     return <div className="animate-pulse">Loading comments...</div>;
   }
 
-  const postUrl = uri.replace('at://', 'https://bsky.app/profile/');
+  const postUrl = uri.replace("at://", "https://bsky.app/profile/");
 
   return (
     <div className="mt-8 space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="text-xl font-semibold">Comments</h3>
       </div>
-      
+
       <p className="text-sm text-gray-600 dark:text-gray-300">
         Reply on Bluesky{" "}
-        <a href={postUrl} target="_blank" rel="noreferrer noopener" className="text-blue-500 hover:underline">
+        <a
+          href={postUrl}
+          target="_blank"
+          rel="noreferrer noopener"
+          className="text-blue-500 hover:underline"
+        >
           here
         </a>{" "}
         to join the conversation.
@@ -112,24 +120,33 @@ export default function BlueskyComments({ uri }: Pick<CommentOptions, 'uri'>): J
 
       <div className="space-y-4">
         {thread.replies?.map((reply: Reply) => (
-          <div key={reply.post.uri} className="border border-gray-200 dark:border-gray-800 rounded-lg p-4">
+          <div
+            key={reply.post.uri}
+            className="border border-gray-200 dark:border-gray-800 rounded-lg p-4"
+          >
             <div className="flex items-center gap-2 mb-2">
-              <a 
+              <a
                 href={`https://bsky.app/profile/${reply.post.author.did}`}
                 target="_blank"
                 rel="noreferrer noopener"
                 className="flex items-center gap-2 hover:opacity-80"
               >
-                <img 
-                  src={reply.post.author.avatar} 
+                <img
+                  src={reply.post.author.avatar}
                   alt={reply.post.author.displayName}
                   className="w-6 h-6 rounded-full"
                 />
-                <span className="font-medium">{reply.post.author.displayName}</span>
-                <span className="text-sm text-gray-500">@{reply.post.author.handle}</span>
+                <span className="font-medium">
+                  {reply.post.author.displayName}
+                </span>
+                <span className="text-sm text-gray-500">
+                  @{reply.post.author.handle}
+                </span>
               </a>
             </div>
-            <p className="text-sm text-gray-600 dark:text-gray-300">{reply.post.record.text}</p>
+            <p className="text-sm text-gray-600 dark:text-gray-300">
+              {reply.post.record.text}
+            </p>
             <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
               <span>💙 {reply.post.likeCount || 0}</span>
               <span>🔄 {getTotalReposts(reply.post)}</span>
@@ -140,4 +157,4 @@ export default function BlueskyComments({ uri }: Pick<CommentOptions, 'uri'>): J
       </div>
     </div>
   );
-} 
+}

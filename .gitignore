@@ -4,6 +4,7 @@
 /node_modules
 /.pnp
 .pnp.js
+.yarn/install-state.gz
 
 # testing
 /coverage
@@ -18,13 +19,11 @@
 # misc
 .DS_Store
 *.pem
-.vscode
 
 # debug
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-.pnpm-debug.log*
 
 # local env files
 .env*.local
@@ -36,9 +35,9 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# contentlayer
-.contentlayer
+# OpenNext
+/.open-next
 
-# sst
-.open-next
-.sst
+# wrangler files
+.wrangler
+.dev.vars*

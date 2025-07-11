@@ -2,7 +2,7 @@
 
 import Script from "next/script";
 
-const NewsletterSignup = (): JSX.Element => {
+const NewsletterSignup = (): React.JSX.Element => {
   return (
     <div className="my-8 border-t border-gray-300 pt-8">
       <Script src="https://f.convertkit.com/ckjs/ck.5.js" />

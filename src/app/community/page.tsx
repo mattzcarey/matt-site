@@ -1,9 +1,10 @@
-import { Link } from "components/links";
+import { Link } from "@/components/links";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Community",
-  description: "Organiser of the GenAI London Meetup, Serverless London meetup, Co-Founder of GenAI Days, and Founder of AI Product Engineering.",
+  description:
+    "Organiser of the GenAI London Meetup, Serverless London meetup, Co-Founder of GenAI Days, and Founder of AI Product Engineering.",
 };
 
 const CommunityPage = () => {
@@ -25,14 +26,18 @@ const CommunityPage = () => {
             className="prose prose-neutral dark:prose-invert text-neutral-800 dark:text-neutral-200"
           >
             Serverless London meetup
-          </Link>.<br /><br />
-          Recently I started a new event series - {" "}
+          </Link>
+          .<br />
+          <br />
+          Recently I started a new event series -{" "}
           <Link
             to="https://www.lu.ma/ai-demo-days"
             className="prose prose-neutral dark:prose-invert text-neutral-800 dark:text-neutral-200"
           >
-            AI Demo Days, 
-          </Link> with the aim to bring together the London AI community to build a place where demos can become companies.
+            AI Demo Days,
+          </Link>{" "}
+          with the aim to bring together the London AI community to build a
+          place where demos can become companies.
         </p>
       </div>
     </section>

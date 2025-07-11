@@ -1,52 +1,57 @@
-import BlueskyComments from 'components/bluesky-comments';
-import NewsletterSignup from 'components/newsletter';
-import ElevenLabsAudioNative from 'components/voicePlayer';
-import fs from 'fs';
-import matter from 'gray-matter';
-import 'katex/dist/katex.min.css';
-import { Metadata } from 'next';
-import path from 'path';
-import rehypeImg from 'rehype-img-size';
-import rehypeKatex from 'rehype-katex';
-import rehypeStringify from 'rehype-stringify';
-import { remark } from 'remark';
-import remarkMath from 'remark-math';
-import remarkRehype from 'remark-rehype';
-import './prose.css';
+import BlueskyComments from "@/components/bluesky-comments";
+import NewsletterSignup from "@/components/newsletter";
+import ElevenLabsAudioNative from "@/components/voicePlayer";
+import fs from "fs";
+import matter from "gray-matter";
+import "katex/dist/katex.min.css";
+import { Metadata } from "next";
+import path from "path";
+import rehypeImg from "rehype-img-size";
+import rehypeKatex from "rehype-katex";
+import rehypeStringify from "rehype-stringify";
+import { remark } from "remark";
+import remarkMath from "remark-math";
+import remarkRehype from "remark-rehype";
+import "./prose.css";
 
 type Props = {
-  params: { slug: string }
-}
+  params: Promise<{ slug: string }>;
+};
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const blogDir = path.join(process.cwd(), 'blog');
-  const filePath = path.join(blogDir, `${params.slug}.md`);
-  const fileContents = fs.readFileSync(filePath, 'utf8');
+  const { slug } = await params;
+  const blogDir = path.join(process.cwd(), "blog");
+  const filePath = path.join(blogDir, `${slug}.md`);
+  const fileContents = fs.readFileSync(filePath, "utf8");
   const { data } = matter(fileContents);
 
-  const baseUrl = 'https://mattzcarey.com';
-  const imageUrl = data.image ? 
-    `${baseUrl}${data.image}` : `${baseUrl}/og.jpg`;
-  const canonicalUrl = `${baseUrl}/blog/${params.slug}`;
+  const baseUrl = "https://mattzcarey.com";
+  const imageUrl = data.image ? `${baseUrl}${data.image}` : `${baseUrl}/og.jpg`;
+  const canonicalUrl = `${baseUrl}/blog/${slug}`;
 
   return {
     title: {
       absolute: `${data.title} | Matt's Blog`,
     },
-    description: data.description || "AI Engineer and Community Builder based in London.",
+    description:
+      data.description || "AI Engineer and Community Builder based in London.",
     keywords: data.tags || ["AI", "Machine Learning", "Engineering"],
     authors: [{ name: "Matt Carey" }],
     openGraph: {
       title: data.title + " | Matt's Blog",
-      description: data.description || "AI Engineer and Community Builder based in London.",
+      description:
+        data.description ||
+        "AI Engineer and Community Builder based in London.",
       url: canonicalUrl,
       siteName: "Matt Carey",
-      images: [{
-        url: imageUrl,
-        width: 1200,
-        height: 630,
-        alt: data.title,
-      }],
+      images: [
+        {
+          url: imageUrl,
+          width: 1200,
+          height: 630,
+          alt: data.title,
+        },
+      ],
       locale: "en-GB",
       type: "article",
       publishedTime: data.date,
@@ -55,7 +60,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     twitter: {
       card: "summary_large_image",
       title: data.title + " | Matt's Blog",
-      description: data.description || "AI Engineer and Community Builder based in London.",
+      description:
+        data.description ||
+        "AI Engineer and Community Builder based in London.",
       images: [imageUrl],
       creator: "@mattzcarey",
     },
@@ -66,52 +73,57 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export async function generateStaticParams() {
-  const blogDir = path.join(process.cwd(), 'blog');
+  const blogDir = path.join(process.cwd(), "blog");
   const files = fs.readdirSync(blogDir);
   return files.map((filename) => ({
-    slug: filename.replace('.md', ''),
+    slug: filename.replace(".md", ""),
   }));
 }
 
-export default async function BlogPost({ params }: { params: { slug: string } }) {
-  const blogDir = path.join(process.cwd(), 'blog');
-  const filePath = path.join(blogDir, `${params.slug}.md`);
-  const fileContents = fs.readFileSync(filePath, 'utf8');
+export default async function BlogPost({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
+  const { slug } = await params;
+  const blogDir = path.join(process.cwd(), "blog");
+  const filePath = path.join(blogDir, `${slug}.md`);
+  const fileContents = fs.readFileSync(filePath, "utf8");
   const { data, content } = matter(fileContents);
-  
+
   const processedContent = await remark()
     .use(remarkMath)
     .use(remarkRehype)
     .use(rehypeKatex)
-    .use(rehypeImg, { dir: 'public' })
+    .use(rehypeImg, { dir: "public" })
     .use(rehypeStringify)
     .process(content);
-    
+
   const contentHtml = processedContent.toString();
 
   return (
     <article className="prose prose-neutral dark:prose-invert w-full max-w-none">
       <h1>{data.title}</h1>
-      <p className="text-gray-500">{new Date(data.date).toLocaleDateString()}</p>
+      <p className="text-gray-500">
+        {new Date(data.date).toLocaleDateString()}
+      </p>
       {data.image && (
         <div className="flex justify-center mb-8">
-          <img 
-            src={data.image} 
+          <img
+            src={data.image}
             alt={data.title}
             className="rounded-lg max-h-[400px] object-cover"
           />
         </div>
       )}
       <div className="mb-8">
-        <ElevenLabsAudioNative 
-          publicUserId="d9ac654064df1d8d2ace9a730b19fc2ffa05fa2d985d7acc665a5259b7aca2c3" 
-          size="small" 
+        <ElevenLabsAudioNative
+          publicUserId="d9ac654064df1d8d2ace9a730b19fc2ffa05fa2d985d7acc665a5259b7aca2c3"
+          size="small"
         />
       </div>
       <div dangerouslySetInnerHTML={{ __html: contentHtml }} />
-      {data.bluesky_post_uri && (
-        <BlueskyComments uri={data.bluesky_post_uri} />
-      )}
+      {data.bluesky_post_uri && <BlueskyComments uri={data.bluesky_post_uri} />}
       <NewsletterSignup />
     </article>
   );

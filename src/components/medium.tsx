@@ -9,7 +9,7 @@ interface MediumItem {
   link: string;
 }
 
-export const MediumArticles = (): JSX.Element => {
+export const MediumArticles = () => {
   const [items, setItems] = useState<MediumItem[]>([]);
 
   useEffect(() => {
@@ -17,7 +17,7 @@ export const MediumArticles = (): JSX.Element => {
       const res = await fetch(
         "https://api.rss2json.com/v1/api.json?rss_url=https://mattzcarey.medium.com/feed"
       );
-      const data = await res.json();
+      const data = await res.json() as { items: MediumItem[] };
       const items: MediumItem[] = data.items;
       setItems(items);
     }

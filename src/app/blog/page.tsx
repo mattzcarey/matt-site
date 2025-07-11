@@ -1,6 +1,6 @@
-import MediumArticles from "components/medium";
+import MediumArticles from "@/components/medium";
 import type { Metadata } from "next";
-import MarkdownBlogPosts from "../../components/blogPost";
+import MarkdownBlogPosts from "@/components/blogPost";
 
 export const metadata: Metadata = {
   title: "Blog",

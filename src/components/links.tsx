@@ -1,4 +1,4 @@
-export const YouTubeEmbed = ({ videoId }) => {
+export const YouTubeEmbed = ({ videoId }: { videoId: string }) => {
   return (
     <iframe
       width="560"
@@ -11,13 +11,13 @@ export const YouTubeEmbed = ({ videoId }) => {
   );
 };
 
-export const Link = ({ to, className, children }) => (
+export const Link = ({ to, className, children }: { to: string; className?: string; children: React.ReactNode }) => (
   <a href={to} className={className}>
     {children}
   </a>
 );
 
-export const IframeEmbed = ({ src, width, height }) => {
+export const IframeEmbed = ({ src, width, height }: { src: string; width: string; height: string }) => {
   return (
     <iframe
       src={src}

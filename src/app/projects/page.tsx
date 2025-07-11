@@ -1,9 +1,10 @@
-import { Link } from "components/links";
+import { Link } from "@/components/links";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Projects",
-  description: "Creator of Code Review GPT, founding team at Quivr and building lang.new for my mum.",
+  description:
+    "Creator of Code Review GPT, founding team at Quivr and building lang.new for my mum.",
 };
 
 const ProjectsPage = () => {
@@ -26,14 +27,18 @@ const ProjectsPage = () => {
           >
             Quivr (YC W24).
           </Link>
-          <br /><br />Currently building{" "}
+          <br />
+          <br />
+          Currently building{" "}
           <Link
             to="https://lang.new"
             className="prose prose-neutral dark:prose-invert text-neutral-800 dark:text-neutral-200"
           >
             lang.new
           </Link>{" "}
-          for my mum. Also working on [a project](https://parliament-wow.threepointone.workers.dev/) to help people understand what is happening in parliament.
+          for my mum. Also working on [a
+          project](https://parliament-wow.threepointone.workers.dev/) to help
+          people understand what is happening in parliament.
         </p>
         <hr className="my-4" />
       </div>
