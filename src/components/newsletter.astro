@@ -1,0 +1,90 @@
+---
+// No server-side logic needed for this component
+---
+
+<div class="my-8 border-t border-gray-300 pt-8">
+  <p class="text-sm text-muted-foreground mb-4">
+    Sign up for (very occasional) updates on new posts.
+  </p>
+
+  <form
+    action="https://app.kit.com/forms/7428455/subscriptions"
+    class="seva-form formkit-form"
+    method="post"
+    data-sv-form="7428455"
+    data-uid="9e350f163a"
+    data-format="inline"
+    data-version="5"
+  >
+    <div data-style="clean">
+      <ul
+        class="formkit-alert formkit-alert-error"
+        data-element="errors"
+        data-group="alert"
+      >
+      </ul>
+      <div
+        data-element="fields"
+        data-stacked="false"
+        class="seva-fields formkit-fields flex items-center gap-4"
+      >
+        <div class="formkit-field flex-1">
+          <input
+            class="formkit-input w-full"
+            aria-label="First Name"
+            name="fields[first_name]"
+            placeholder="First Name"
+            type="text"
+          />
+        </div>
+        <div class="formkit-field flex-1">
+          <input
+            class="formkit-input w-full"
+            name="email_address"
+            aria-label="Email Address"
+            placeholder="Email Address"
+            required
+            type="email"
+          />
+        </div>
+        <button
+          data-element="submit"
+          class="formkit-submit formkit-submit bg-gray-200 dark:bg-gray-800 text-black dark:text-white px-6 py-2 rounded-md hover:bg-gray-500 dark:hover:bg-gray-500 transition-colors whitespace-nowrap"
+        >
+          <div class="formkit-spinner">
+            <div></div>
+            <div></div>
+            <div></div>
+          </div>
+          <span>Subscribe</span>
+        </button>
+      </div>
+    </div>
+  </form>
+</div>
+
+<script>
+  // Load ConvertKit script
+  function loadConvertKitScript() {
+    if (
+      document.querySelector(
+        'script[src="https://f.convertkit.com/ckjs/ck.5.js"]'
+      )
+    ) {
+      return; // Already loaded
+    }
+
+    const script = document.createElement("script");
+    script.src = "https://f.convertkit.com/ckjs/ck.5.js";
+    script.async = true;
+    document.head.appendChild(script);
+  }
+
+  // Load on page load
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", loadConvertKitScript);
+  } else {
+    loadConvertKitScript();
+  }
+</script>
+

@@ -1,7 +1,7 @@
 ---
-import Layout from '../layouts/Layout.astro';
-import Sidebar from '../components/Sidebar.astro';
-import { ArrowIcon } from '../components/icons';
+import Layout from "../layouts/Layout.astro";
+import Sidebar from "../components/Sidebar.astro";
+import Icon from "../components/icons.astro";
 ---
 
 <Layout title="Matt Carey">
@@ -21,7 +21,9 @@ import { ArrowIcon } from '../components/icons';
           height="100"
         />
       </div>
-      <ul class="flex flex-col md:flex-row mt-8 space-x-0 md:space-x-4 space-y-2 md:space-y-0 font-sm text-neutral-500 dark:text-neutral-400">
+      <ul
+        class="flex flex-col md:flex-row mt-8 space-x-0 md:space-x-4 space-y-2 md:space-y-0 font-sm text-neutral-500 dark:text-neutral-400"
+      >
         <li>
           <a
             class="flex items-center hover:text-neutral-700 dark:hover:text-neutral-200 transition-all"
@@ -29,12 +31,14 @@ import { ArrowIcon } from '../components/icons';
             target="_blank"
             href="https://bsky.app/profile/mattzcarey.com"
           >
-            <ArrowIcon />
+            <Icon name="arrow" />
             <p class="h-7">follow me on bluesky</p>
           </a>
         </li>
       </ul>
-      <ul class="flex flex-col md:flex-row mt-8 space-x-0 md:space-x-4 space-y-2 md:space-y-0 font-sm text-neutral-500 dark:text-neutral-400">
+      <ul
+        class="flex flex-col md:flex-row mt-8 space-x-0 md:space-x-4 space-y-2 md:space-y-0 font-sm text-neutral-500 dark:text-neutral-400"
+      >
         <li>
           <a
             class="flex items-center hover:text-neutral-700 dark:hover:text-neutral-200 transition-all"
@@ -42,7 +46,7 @@ import { ArrowIcon } from '../components/icons';
             target="_blank"
             href="https://www.linkedin.com/in/mattzcarey/"
           >
-            <ArrowIcon />
+            <Icon name="arrow" />
             <p class="h-7">connect on linkedin</p>
           </a>
         </li>

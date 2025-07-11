@@ -1,6 +1,6 @@
 ---
 title: "Advent of ML Day 3: Embeddings"
-date: "2024-12-03"
+pubDate: "2024-12-03"
 bluesky_post_uri: "https://bsky.app/profile/mattzcarey.com/post/3lcftftzqvs2c"
 image: "/images/og/advent-of-ml-day-3.png"
 ---

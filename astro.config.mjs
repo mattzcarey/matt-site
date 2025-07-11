@@ -1,15 +1,15 @@
 import { defineConfig } from 'astro/config';
-import react from '@astrojs/react';
 import tailwind from '@astrojs/tailwind';
 import cloudflare from '@astrojs/cloudflare';
 import mdx from '@astrojs/mdx';
+import sitemap from '@astrojs/sitemap';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 
 export default defineConfig({
   site: 'https://mattzcarey.com',
+  output: 'static',
   integrations: [
-    react(),
     tailwind({
       applyBaseStyles: false,
     }),
@@ -17,11 +17,12 @@ export default defineConfig({
       remarkPlugins: [remarkMath],
       rehypePlugins: [rehypeKatex],
     }),
+    sitemap(),
   ],
-  output: 'server',
   adapter: cloudflare({
-    mode: 'advanced',
-    functionPerRoute: false,
+    platformProxy: {
+      enabled: true,
+    },
   }),
   markdown: {
     remarkPlugins: [remarkMath],

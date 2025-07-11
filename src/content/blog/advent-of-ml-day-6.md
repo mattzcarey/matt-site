@@ -1,6 +1,6 @@
 ---
 title: "Advent of ML Day 6: Measuring Success"
-date: "2024-12-06"
+pubDate: "2024-12-06"
 image: "/images/og/advent-of-ml-day-6.png"
 bluesky_post_uri: "https://bsky.app/profile/mattzcarey.com/post/3lcnnhudre22f"
 ---

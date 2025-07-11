@@ -1,6 +1,6 @@
 ---
 title: "Speech on AI at the House of Lords"
-date: "2024-09-15"
+pubDate: "2024-09-15"
 ---
 
 On September 11, 2024, I had the privilege of attending a roundtable discussion on AI openness at the House of Lords, hosted by Lord Wei. This event was part of a series of roundtable discussions scheduled between September and December, focusing on various aspects of AI policy and development with particular focus on AI openness. The roundtable featured speakers from industry and policy organizations, including parliamentarians such as Baroness Stowell.

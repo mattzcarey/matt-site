@@ -1,6 +1,6 @@
 ---
 title: "Advent of ML Day 11: Test Time Compute"
-date: "2024-12-11"
+pubDate: "2024-12-11"
 image: "/images/og/advent-of-ml-day-11.png"
 bluesky_post_uri: "https://bsky.app/profile/mattzcarey.com/post/3ld4mrgrmr22s"
 ---

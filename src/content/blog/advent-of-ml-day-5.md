@@ -1,6 +1,6 @@
 ---
 title: "Advent of ML Day 5: Rerankers"
-date: "2024-12-05"
+pubDate: "2024-12-05"
 image: "/images/og/advent-of-ml-day-5.png"
 bluesky_post_uri: "https://bsky.app/profile/mattzcarey.com/post/3lckwfawaak2u"
 ---

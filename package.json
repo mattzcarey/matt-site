@@ -3,49 +3,35 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "astro dev",
-    "start": "astro dev",
-    "build": "astro check && astro build",
-    "preview": "astro preview",
     "astro": "astro",
-    "deploy": "astro build && wrangler deploy",
-    "cf-typegen": "wrangler types --env-interface CloudflareEnv ./cloudflare-env.d.ts"
+    "build": "astro build",
+    "cf-typegen": "wrangler types",
+    "check": "astro build && tsc && wrangler deploy --dry-run",
+    "deploy": "wrangler deploy",
+    "dev": "astro dev",
+    "preview": "astro build && wrangler dev"
   },
   "dependencies": {
     "@astrojs/cloudflare": "^12.6.0",
     "@astrojs/mdx": "^4.3.0",
-    "@astrojs/react": "^4.3.0",
+    "@astrojs/rss": "^4.0.11",
+    "@astrojs/sitemap": "^3.4.1",
     "@astrojs/tailwind": "^6.0.2",
-    "@opennextjs/cloudflare": "^1.4.0",
     "astro": "^5.11.0",
     "clsx": "^2.1.1",
-    "framer-motion": "^12.23.3",
-    "gray-matter": "^4.0.3",
     "katex": "^0.16.22",
-    "next": "15.3.5",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "rehype-img-size": "^1.0.1",
     "rehype-katex": "^7.0.1",
-    "rehype-stringify": "^10.0.1",
-    "remark": "^15.0.1",
-    "remark-html": "^16.0.1",
     "remark-math": "^6.0.0",
     "remark-rehype": "^11.1.2"
   },
   "devDependencies": {
-    "@eslint/eslintrc": "^3",
     "@tailwindcss/typography": "^0.5.9",
     "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
     "autoprefixer": "^10.4.13",
-    "eslint": "^9",
-    "eslint-config-next": "15.3.5",
     "postcss": "^8.4.21",
-    "sharp": "^0.33.5",
     "tailwindcss": "^3.2.4",
-    "typescript": "^5",
-    "wrangler": "^4.24.3"
-  }
+    "typescript": "^5.8.3",
+    "wrangler": "^4.21.x"
+  },
+  "type": "module"
 }

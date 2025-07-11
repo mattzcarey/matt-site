@@ -1,6 +1,6 @@
 ---
 title: "5 Skills I've needed as an AI Engineer"
-date: "2024-07-09"
+pubDate: "2024-07-09"
 ---
 
 I've been an AI Engineer for about a year now based out of London,UK. Previously I was working at a consultancy, where I helped build open source tools like Quivr (now YC W24) and [Code Review GPT](https://github.com/mattzcarey/code-review-gpt]). Now I work at [StackOne](https://stackone.com), automating the creation of unified APIs for SaaS companies.

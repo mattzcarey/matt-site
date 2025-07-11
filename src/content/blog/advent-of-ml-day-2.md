@@ -1,6 +1,6 @@
 ---
 title: "Advent of ML Day 2: Data"
-date: "2024-12-02"
+pubDate: "2024-12-02"
 bluesky_post_uri: "https://bsky.app/profile/mattzcarey.com/post/3lcd4nzf2lc2h"
 image: "/images/og/advent-of-ml-day-2.png"
 ---

@@ -1,6 +1,6 @@
 ---
 title: "Advent of ML Day 4: BM25 and Hybrid Search"
-date: "2024-12-04"
+pubDate: "2024-12-04"
 bluesky_post_uri: "https://bsky.app/profile/mattzcarey.com/post/3lciimayze227"
 image: "/images/og/advent-of-ml-day-4.png"
 ---

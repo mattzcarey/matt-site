@@ -1,5 +1,5 @@
 ---
-import { ArrowIcon, GitHubIcon, LinkedinIcon, TwitterIcon } from './icons';
+import Icon from "./icons.astro";
 ---
 
 <div class="flex flex-col gap-2 md:flex-row md:gap-2">
@@ -10,10 +10,10 @@ import { ArrowIcon, GitHubIcon, LinkedinIcon, TwitterIcon } from './icons';
     class="flex w-full border border-neutral-200 dark:border-neutral-800 rounded-lg p-4 no-underline items-center text-neutral-800 dark:text-neutral-200 hover:dark:bg-neutral-900 hover:bg-neutral-100 transition-all justify-between"
   >
     <div class="flex items-center">
-      <TwitterIcon />
+      <Icon name="twitter" />
       <div class="ml-3">Twitter</div>
     </div>
-    <ArrowIcon />
+    <Icon name="arrow" />
   </a>
   <a
     rel="noopener noreferrer"
@@ -22,10 +22,10 @@ import { ArrowIcon, GitHubIcon, LinkedinIcon, TwitterIcon } from './icons';
     class="flex w-full border border-neutral-200 dark:border-neutral-800 rounded-lg p-4 no-underline items-center text-neutral-800 dark:text-neutral-200 hover:dark:bg-neutral-900 hover:bg-neutral-100 transition-all justify-between"
   >
     <div class="flex items-center">
-      <GitHubIcon />
+      <Icon name="github" />
       <div class="ml-3">GitHub</div>
     </div>
-    <ArrowIcon />
+    <Icon name="arrow" />
   </a>
   <a
     rel="noopener noreferrer"
@@ -34,9 +34,9 @@ import { ArrowIcon, GitHubIcon, LinkedinIcon, TwitterIcon } from './icons';
     class="flex w-full border border-neutral-200 dark:border-neutral-800 rounded-lg p-4 no-underline items-center text-neutral-800 dark:text-neutral-200 hover:dark:bg-neutral-900 hover:bg-neutral-100 transition-all justify-between"
   >
     <div class="flex items-center">
-      <LinkedinIcon />
+      <Icon name="linkedin" />
       <div class="ml-3">Linkedin</div>
     </div>
-    <ArrowIcon />
+    <Icon name="arrow" />
   </a>
 </div>

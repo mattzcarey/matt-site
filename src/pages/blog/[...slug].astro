@@ -1,0 +1,69 @@
+---
+import { getCollection, type CollectionEntry } from "astro:content";
+import { render } from "astro:content";
+import Layout from "../../layouts/Layout.astro";
+import Sidebar from "../../components/Sidebar.astro";
+import BlueskyComments from "../../components/bluesky-comments.astro";
+import NewsletterSignup from "../../components/newsletter.astro";
+import ElevenLabsAudioNative from "../../components/voicePlayer.astro";
+import "../../styles/prose.css";
+
+export async function getStaticPaths() {
+  const posts = await getCollection("blog");
+  return posts.map((post) => ({
+    params: { slug: post.id },
+    props: post,
+  }));
+}
+
+type Props = CollectionEntry<"blog">;
+
+const post = Astro.props;
+const { Content } = await render(post);
+
+const baseUrl = "https://mattzcarey.com";
+const imageUrl = post.data.image
+  ? `${baseUrl}${post.data.image}`
+  : `${baseUrl}/og.jpg`;
+const canonicalUrl = `${baseUrl}/blog/${post.id}`;
+
+const title = `${post.data.title} | Matt's Blog`;
+const description =
+  post.data.description || "AI Engineer and Community Builder based in London.";
+---
+
+<Layout title={title} description={description} image={post.data.image}>
+  <Sidebar />
+  <main class="flex-auto min-w-0 mt-6 md:mt-0 flex flex-col px-2 md:px-0">
+    <article class="prose prose-neutral dark:prose-invert w-full max-w-none">
+      <h1>{post.data.title}</h1>
+      <p class="text-gray-500">
+        {post.data.pubDate.toLocaleDateString()}
+      </p>
+      {
+        post.data.image && (
+          <div class="flex justify-center mb-8">
+            <img
+              src={post.data.image}
+              alt={post.data.title}
+              class="rounded-lg max-h-[400px] object-cover"
+            />
+          </div>
+        )
+      }
+      <div class="mb-8">
+        <ElevenLabsAudioNative
+          publicUserId="d9ac654064df1d8d2ace9a730b19fc2ffa05fa2d985d7acc665a5259b7aca2c3"
+          size="small"
+        />
+      </div>
+      <Content />
+      {
+        post.data.bluesky_post_uri && (
+          <BlueskyComments uri={post.data.bluesky_post_uri} />
+        )
+      }
+      <NewsletterSignup />
+    </article>
+  </main>
+</Layout>

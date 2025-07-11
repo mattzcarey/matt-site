@@ -1,6 +1,6 @@
 ---
 title: "Advent of ML Day 1: Tokenizers"
-date: "2024-12-01"
+pubDate: "2024-12-01"
 bluesky_post_uri: "https://bsky.app/profile/mattzcarey.com/post/3lcbk7lkqjk2c"
 image: "/images/og/advent-of-ml-day-1.png"
 ---

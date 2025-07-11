@@ -1,6 +1,6 @@
 ---
 title: "A Letter to the Users and Contributors of Code Review GPT"
-date: "2024-07-10"
+pubDate: "2024-07-10"
 ---
 
 _Originally posted on the Code Review GPT GitHub repository [discussions board](https://github.com/mattzcarey/code-review-gpt/discussions/338)_
