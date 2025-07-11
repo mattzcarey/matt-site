@@ -41,9 +41,6 @@ importers:
       remark-rehype:
         specifier: ^11.1.2
         version: 11.1.2
-      typescript:
-        specifier: ^5.8.3
-        version: 5.8.3
     devDependencies:
       '@tailwindcss/typography':
         specifier: ^0.5.9
@@ -60,6 +57,9 @@ importers:
       tailwindcss:
         specifier: ^3.2.4
         version: 3.4.17
+      typescript:
+        specifier: ^5.8.3
+        version: 5.8.3
       wrangler:
         specifier: ^4.21.x
         version: 4.24.3(@cloudflare/workers-types@4.20250711.0)
