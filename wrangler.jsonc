@@ -5,12 +5,11 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "matt-site",
-  "main": ".open-next/worker.js",
-  "compatibility_date": "2025-03-01",
+  "compatibility_date": "2025-07-07",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   "assets": {
-    "binding": "ASSETS",
-    "directory": ".open-next/assets",
+    "directory": "./dist",
+    "not_found_handling": "404-page" // If you have a custom `src/pages/404.astro` page
   },
   "observability": {
     "enabled": true,

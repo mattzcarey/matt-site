@@ -1,31 +1,29 @@
-import type { Metadata } from "next";
-import { Link } from "@/components/links";
-import { Footer } from "./footer";
+---
+import Layout from '../layouts/Layout.astro';
+import Sidebar from '../components/Sidebar.astro';
+import Footer from '../components/Footer.astro';
+---
 
-export const metadata: Metadata = {
-  title: "About",
-  description: "AI Engineer & Community Builder.",
-};
-
-export default function AboutPage() {
-  return (
+<Layout title="About | Matt Carey" description="AI Engineer & Community Builder.">
+  <Sidebar />
+  <main class="flex-auto min-w-0 mt-6 md:mt-0 flex flex-col px-2 md:px-0">
     <section>
-      <h1 className="font-bold text-3xl font-serif">About Me</h1>
-      <div className="my-5 prose prose-neutral text-neutral-800 dark:text-neutral-200">
+      <h1 class="font-bold text-3xl font-serif">About Me</h1>
+      <div class="my-5 prose prose-neutral text-neutral-800 dark:text-neutral-200">
         <p>
           I am a Founding Engineer at{" "}
-          <Link
-            to="https://stackone.com"
-            className="my-5 prose prose-neutral text-neutral-800 dark:text-neutral-200"
+          <a
+            href="https://stackone.com"
+            class="my-5 prose prose-neutral text-neutral-800 dark:text-neutral-200"
           >
             StackOne
-          </Link>{" "}
+          </a>{" "}
           building data integration tools for AI agents. I also organise the
           GenAI London Meetup and am a Co-Founder of GenAI Days - a global
           collective of AI enthusiasts.
         </p>
       </div>
-      <div className="prose prose-neutral dark:prose-invert text-neutral-800 dark:text-neutral-200">
+      <div class="prose prose-neutral dark:prose-invert text-neutral-800 dark:text-neutral-200">
         <p>
           Previously I spent time in consultancy building scalable event-driven
           applications for startups and enterprises on AWS. I continue to
@@ -39,12 +37,12 @@ export default function AboutPage() {
           international stage.
         </p>
         <p>
-          Outside of tech and sport, I&apos;m an advocate for sustainability and the
+          Outside of tech and sport, I'm an advocate for sustainability and the
           plant-based movement.
         </p>
         <hr />
       </div>
       <Footer />
     </section>
-  );
-}
+  </main>
+</Layout>
