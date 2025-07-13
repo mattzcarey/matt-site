@@ -10,7 +10,7 @@ import Icon from "../components/icons.astro";
     <section>
       <h1 class="font-bold text-3xl font-serif">Matt Carey</h1>
       <p class="my-5 max-w-[460px] text-neutral-800 dark:text-neutral-200">
-        Hey I'm Matt, welcome to my website.
+        Hey I'm Matt,<br />welcome to my website.
       </p>
       <div class="flex items-start md:items-center my-8 flex-col md:flex-row">
         <img
@@ -21,51 +21,48 @@ import Icon from "../components/icons.astro";
           height="100"
         />
       </div>
-      <ul
-        class="flex flex-col md:flex-row mt-8 space-x-0 md:space-x-4 space-y-2 md:space-y-0 font-sm text-neutral-500 dark:text-neutral-400"
-      >
-        <li>
+
+      <div class="mt-8">
+        <h2 class="text-neutral-800 dark:text-neutral-200 mb-6">Find me on:</h2>
+        <div class="flex items-center gap-6">
           <a
-            class="flex items-center hover:text-neutral-700 dark:hover:text-neutral-200 transition-all"
-            rel="noopener noreferrer"
+            href="https://github.com/mattzcarey"
             target="_blank"
+            rel="noopener noreferrer"
+            class="text-neutral-600 dark:text-neutral-400 hover:text-neutral-800 dark:hover:text-neutral-200 transition-all"
+            title="GitHub"
+          >
+            <Icon name="github" class="w-6 h-6" />
+          </a>
+          <a
             href="https://bsky.app/profile/mattzcarey.com"
-          >
-            <Icon name="arrow" />
-            <p class="h-7">follow me on bluesky</p>
-          </a>
-        </li>
-      </ul>
-      <ul
-        class="flex flex-col md:flex-row mt-8 space-x-0 md:space-x-4 space-y-2 md:space-y-0 font-sm text-neutral-500 dark:text-neutral-400"
-      >
-        <li>
-          <a
-            class="flex items-center hover:text-neutral-700 dark:hover:text-neutral-200 transition-all"
-            rel="noopener noreferrer"
             target="_blank"
+            rel="noopener noreferrer"
+            class="text-neutral-600 dark:text-neutral-400 hover:text-neutral-800 dark:hover:text-neutral-200 transition-all"
+            title="Bluesky"
+          >
+            <Icon name="bluesky" class="w-6 h-6" />
+          </a>
+          <a
             href="https://twitter.com/mattzcarey"
-          >
-            <Icon name="arrow" />
-            <p class="h-7">follow me on twitter/x</p>
-          </a>
-        </li>
-      </ul>
-      <ul
-        class="flex flex-col md:flex-row mt-8 space-x-0 md:space-x-4 space-y-2 md:space-y-0 font-sm text-neutral-500 dark:text-neutral-400"
-      >
-        <li>
-          <a
-            class="flex items-center hover:text-neutral-700 dark:hover:text-neutral-200 transition-all"
-            rel="noopener noreferrer"
             target="_blank"
-            href="https://www.linkedin.com/in/mattzcarey/"
+            rel="noopener noreferrer"
+            class="text-neutral-600 dark:text-neutral-400 hover:text-neutral-800 dark:hover:text-neutral-200 transition-all"
+            title="Twitter/X"
           >
-            <Icon name="arrow" />
-            <p class="h-7">connect on linkedin</p>
+            <Icon name="twitter" class="w-6 h-6" />
           </a>
-        </li>
-      </ul>
+          <a
+            href="https://www.linkedin.com/in/mattzcarey/"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="text-neutral-600 dark:text-neutral-400 hover:text-neutral-800 dark:hover:text-neutral-200 transition-all"
+            title="LinkedIn"
+          >
+            <Icon name="linkedin" class="w-6 h-6" />
+          </a>
+        </div>
+      </div>
     </section>
   </main>
 </Layout>

@@ -1,7 +1,6 @@
 ---
 import Layout from "../layouts/Layout.astro";
 import Sidebar from "../components/Sidebar.astro";
-import Footer from "../components/Footer.astro";
 ---
 
 <Layout
@@ -11,49 +10,51 @@ import Footer from "../components/Footer.astro";
   <Sidebar />
   <main class="flex-auto min-w-0 mt-6 md:mt-0 flex flex-col px-2 md:px-0">
     <section>
-      <h1 class="font-bold text-3xl font-serif">About Me</h1>
+      <h1 class="font-bold text-3xl font-serif mb-8">About Me</h1>
       <div
         class="my-5 prose prose-neutral text-neutral-800 dark:text-neutral-200"
       >
         <p>
-          I am a Founding Engineer at{" "}
+          I am a Founding AI Engineer at{" "}
           <a
             href="https://stackone.com"
             class="my-5 prose prose-neutral text-neutral-800 dark:text-neutral-200"
-          >
-            StackOne
-          </a>{" "}
-          building data integration tools for AI agents and sit on the{" "}
+            >StackOne</a
+          >{" "}
+          building tools for AI agents and sit on the{" "}
           <a
             href="https://openuk.uk/"
             class="my-5 prose prose-neutral text-neutral-800 dark:text-neutral-200"
-          >
-            OpenUK AI Advisory board
-          </a>
-          .
+            >OpenUK</a
+          >{" "}
+          AI Advisory Board.
         </p>
       </div>
       <div
         class="prose prose-neutral dark:prose-invert text-neutral-800 dark:text-neutral-200"
       >
         <p>
+          Recently I started a new event series - <a
+            href="https://www.lu.ma/ai-demo-days"
+            class="my-5 prose prose-neutral text-neutral-800 dark:text-neutral-200"
+            >AI Demo Days</a
+          >
+          , with the aim to bring together the London AI community to build a place
+          where demos can become companies.
+        </p>
+        <hr />
+        <p>
           Previously I spent time in consultancy building scalable event-driven
           applications for startups and enterprises on AWS.
         </p>
-        <hr />
         <p>
           I retired from a short professional windsurfing career in December
           2020. Since then I have worked as a performance coach for junior and
           youth-age and olympic level athletes wanting to make waves on the
           international stage.
         </p>
-        <p>
-          Outside of tech and sport, I'm an advocate for sustainability and the
-          plant-based movement.
-        </p>
         <hr />
       </div>
-      <Footer />
     </section>
   </main>
 </Layout>
