@@ -5,15 +5,15 @@ import 'katex/dist/katex.min.css';
 export interface Props {
   title?: string;
   description?: string;
+  image?: string;
   canonicalURL?: string;
-  imageURL?: string;
 }
 
 const {
   title = 'Matt Carey',
   description = 'AI Engineer and Community Builder based in London.',
+  image = '/og.jpg',
   canonicalURL,
-  imageURL = '/og.jpg',
 } = Astro.props;
 ---
 
@@ -39,7 +39,7 @@ const {
     <meta property="og:url" content={Astro.url} />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
-    <meta property="og:image" content={imageURL} />
+    <meta property="og:image" content={image} />
     <meta property="og:site_name" content="Matt Carey" />
     <meta property="og:locale" content="en-GB" />
     
@@ -48,7 +48,7 @@ const {
     <meta property="twitter:url" content={Astro.url} />
     <meta property="twitter:title" content={title} />
     <meta property="twitter:description" content={description} />
-    <meta property="twitter:image" content={imageURL} />
+    <meta property="twitter:image" content={image} />
     <meta property="twitter:creator" content="@mattzcarey" />
     
     <!-- Robots -->
