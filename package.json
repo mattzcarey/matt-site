@@ -1,5 +1,5 @@
 {
-    "name": "mcp-servers-internal",
+    "name": "matt-site",
     "private": true,
     "scripts": {
         "build": "turbo run build",
