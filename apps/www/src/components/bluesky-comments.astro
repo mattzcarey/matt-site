@@ -1,0 +1,179 @@
+---
+export interface Props {
+  uri: string;
+}
+
+const { uri } = Astro.props;
+
+function formatUri(uri: string): string {
+  if (!uri.startsWith('at://') && uri.includes('bsky.app/profile/')) {
+    const match = uri.match(/profile\/([\w.]+)\/post\/([\w]+)/);
+    if (match) {
+      const [, handle, postId] = match;
+      return `at://${handle}/app.bsky.feed.post/${postId}`;
+    }
+  }
+  return uri;
+}
+
+const postUrl = uri.replace('at://', 'https://bsky.app/profile/');
+const atUri = formatUri(uri);
+---
+
+<div class="mt-8 space-y-4" id="bluesky-comments" data-uri={atUri}>
+  <div class="flex items-center justify-between">
+    <h3 class="text-xl font-semibold">Comments</h3>
+  </div>
+
+  <p class="text-sm text-gray-600 dark:text-gray-300">
+    Reply on Bluesky{" "}
+    <a
+      href={postUrl}
+      target="_blank"
+      rel="noreferrer noopener"
+      class="text-blue-500 hover:underline"
+    >
+      here
+    </a>{" "}
+    to join the conversation.
+  </p>
+
+  <div id="comments-loading" class="animate-pulse">Loading comments...</div>
+  <div id="comments-error" class="text-red-500 hidden">
+    Error loading comments
+  </div>
+  <div id="comments-container" class="space-y-4 hidden"></div>
+</div>
+
+<script>
+  interface Reply {
+    post: {
+      uri: string;
+      author: {
+        avatar: string;
+        displayName: string;
+        handle: string;
+        did: string;
+      };
+      record: {
+        text: string;
+      };
+      likeCount?: number;
+      repostCount?: number;
+      replyCount?: number;
+      quoteCount?: number;
+    };
+  }
+
+  interface Thread {
+    replies: Reply[];
+    post: {
+      likeCount?: number;
+      repostCount?: number;
+      replyCount?: number;
+      quoteCount?: number;
+    };
+  }
+
+  function getTotalReposts(post: {
+    repostCount?: number;
+    quoteCount?: number;
+  }) {
+    return (post.repostCount || 0) + (post.quoteCount || 0);
+  }
+
+  async function loadBlueskyComments() {
+    const container = document.getElementById("bluesky-comments");
+    if (!container) return;
+
+    const uri = container.getAttribute("data-uri");
+    if (!uri) return;
+
+    const loadingEl = document.getElementById("comments-loading");
+    const errorEl = document.getElementById("comments-error");
+    const commentsEl = document.getElementById("comments-container");
+
+    try {
+      const params = new URLSearchParams({ uri });
+      const res = await fetch(
+        `https://public.api.bsky.app/xrpc/app.bsky.feed.getPostThread?${params.toString()}`,
+        {
+          method: "GET",
+          headers: {
+            Accept: "application/json",
+          },
+          cache: "no-store",
+        }
+      );
+
+      if (!res.ok) {
+        throw new Error("Failed to fetch comments");
+      }
+
+      const data = (await res.json()) as { thread: Thread };
+
+      if (loadingEl) loadingEl.style.display = "none";
+      if (commentsEl) {
+        commentsEl.style.display = "block";
+        commentsEl.innerHTML = "";
+
+        if (data.thread.replies && data.thread.replies.length > 0) {
+          data.thread.replies.forEach((reply: Reply) => {
+            const replyEl = document.createElement("div");
+            replyEl.className =
+              "border border-gray-200 dark:border-gray-800 rounded-lg p-4";
+            replyEl.innerHTML = `
+              <div class="flex items-center gap-2 mb-2">
+                <a
+                  href="https://bsky.app/profile/${reply.post.author.did}"
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  class="flex items-center gap-2 hover:opacity-80"
+                >
+                  <img
+                    src="${reply.post.author.avatar}"
+                    alt="${reply.post.author.displayName}"
+                    class="w-6 h-6 rounded-full"
+                  />
+                  <span class="font-medium">
+                    ${reply.post.author.displayName}
+                  </span>
+                  <span class="text-sm text-gray-500">
+                    @${reply.post.author.handle}
+                  </span>
+                </a>
+              </div>
+              <p class="text-sm text-gray-600 dark:text-gray-300">
+                ${reply.post.record.text}
+              </p>
+              <div class="flex items-center gap-4 mt-2 text-sm text-gray-500">
+                <span>💙 ${reply.post.likeCount || 0}</span>
+                <span>🔄 ${getTotalReposts(reply.post)}</span>
+                <span>💬 ${reply.post.replyCount || 0}</span>
+              </div>
+            `;
+            commentsEl.appendChild(replyEl);
+          });
+        } else {
+          commentsEl.innerHTML =
+            '<p class="text-gray-500">No comments yet.</p>';
+        }
+      }
+    } catch (error) {
+      console.error("Error loading comments:", error);
+      if (loadingEl) loadingEl.style.display = "none";
+      if (errorEl) {
+        errorEl.style.display = "block";
+        errorEl.textContent = `Error loading comments: ${error instanceof Error ? error.message : "Unknown error"}`;
+      }
+    }
+  }
+
+  // Load comments when the page loads
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", loadBlueskyComments);
+  } else {
+    loadBlueskyComments();
+  }
+</script>
+

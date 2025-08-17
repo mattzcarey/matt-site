@@ -1,0 +1,54 @@
+---
+export interface Props {
+  publicUserId: string;
+  textColorRgba?: string;
+  backgroundColorRgba?: string;
+  size?: 'small' | 'large';
+}
+
+const {
+  publicUserId,
+  size = 'small',
+  textColorRgba = 'rgba(0, 0, 0, 1.0)',
+  backgroundColorRgba = 'rgba(255, 255, 255, 1.0)',
+} = Astro.props;
+---
+
+<div
+  id="elevenlabs-audionative-widget"
+  data-height={size === "small" ? "90" : "120"}
+  data-width="100%"
+  data-frameborder="no"
+  data-scrolling="no"
+  data-publicuserid={publicUserId}
+  data-playerurl="https://elevenlabs.io/player/index.html"
+  data-small={size === "small" ? "True" : "False"}
+  data-textcolor={textColorRgba}
+  data-backgroundcolor={backgroundColorRgba}
+>
+  <slot />
+</div>
+
+<script>
+  function loadElevenLabsScript() {
+    if (
+      document.querySelector(
+        'script[src="https://elevenlabs.io/player/audioNativeHelper.js"]'
+      )
+    ) {
+      return; // Already loaded
+    }
+
+    const script = document.createElement("script");
+    script.src = "https://elevenlabs.io/player/audioNativeHelper.js";
+    script.async = true;
+    document.body.appendChild(script);
+  }
+
+  // Load on page load
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", loadElevenLabsScript);
+  } else {
+    loadElevenLabsScript();
+  }
+</script>
