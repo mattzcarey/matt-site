@@ -27,6 +27,12 @@ importers:
         specifier: ^4.30.0
         version: 4.30.0(@cloudflare/workers-types@4.20250816.0)
 
+  apps/evolve:
+    devDependencies:
+      '@types/node':
+        specifier: ^20
+        version: 20.19.11
+
   apps/www:
     dependencies:
       '@astrojs/cloudflare':

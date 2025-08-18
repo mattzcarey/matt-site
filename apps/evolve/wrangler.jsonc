@@ -1,13 +1,9 @@
 {
     "$schema": "../../node_modules/wrangler/config-schema.json",
-    "name": "matt-site",
-    "main": "./dist/_worker.js/index.js",
-    "compatibility_date": "2025-01-01",
+    "name": "matt-site-evolve",
+    "main": "src/index.ts",
+    "compatibility_date": "2025-09-28",
     "compatibility_flags": ["nodejs_compat"],
-    "assets": {
-        "directory": "./dist",
-        "binding": "ASSETS"
-    },
     "observability": {
         "enabled": true
     },
@@ -15,7 +11,7 @@
     "routes": [
         {
             "custom_domain": true,
-            "pattern": "mattzcarey.com"
+            "pattern": "evolve.mattzcarey.com"
         }
     ]
 }

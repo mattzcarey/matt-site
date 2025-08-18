@@ -1,0 +1,17 @@
+{
+    "name": "@matt-site/evolve",
+    "version": "0.1.0",
+    "private": true,
+    "scripts": {
+        "types": "wrangler types",
+        "typecheck": "tsgo --noEmit",
+        "deploy": "wrangler deploy",
+        "dev": "wrangler dev"
+    },
+    "dependencies": {
+    },
+    "devDependencies": {
+        "@types/node": "^20"
+    },
+    "type": "module"
+}
