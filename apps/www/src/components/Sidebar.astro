@@ -1,13 +1,18 @@
 ---
 const navItems = {
   '/': { name: 'home' },
-  '/about': { name: 'about' },
+  '/work': { name: 'work' },
   '/projects': { name: 'projects' },
   '/blog': { name: 'blog' },
 };
 
 let pathname = Astro.url.pathname;
-if (pathname.includes('/blog/')) {
+// Strip trailing slash so '/work/' matches '/work' (keep root '/' as-is)
+if (pathname.length > 1 && pathname.endsWith('/')) {
+  pathname = pathname.slice(0, -1);
+}
+// Treat individual blog posts ('/blog/some-post') as the blog section
+if (pathname.startsWith('/blog/')) {
   pathname = '/blog';
 }
 ---
