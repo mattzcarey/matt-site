@@ -61,10 +61,19 @@ POST /api/remix/revert, /api/remix/reset
 
 ## Models
 
-Both run through the `AI` binding (no external key):
-`FAST = @cf/zai-org/glm-4.7-flash`, `CAPABLE = openai/gpt-5.4` (OpenAI catalog via
-Cloudflare unified billing). Swap in `src/studio/config.ts` for whatever the
-account has.
+Both run through the `AI` binding (no external key, all Workers AI). Chosen from a
+latency benchmark of recent coding models (median of 3 runs on a "restyle this
+CSS" prompt, 500 tokens):
+
+| model | median | tok/s | role |
+| --- | --- | --- | --- |
+| `@cf/zai-org/glm-4.7-flash` | 8.6s | 58 | **Fast** (fastest by 2x) |
+| `@cf/moonshotai/kimi-k2.6` | 17.6s | 28 | |
+| `@cf/zai-org/glm-5.2` | 21.6s | 19 | |
+| `@cf/moonshotai/kimi-k2.7-code` | 37.2s | 12 | **Capable** (code specialist) |
+
+Swap in `src/studio/config.ts`. If the 37s Capable latency is too slow for the
+UI, `@cf/moonshotai/kimi-k2.6` (17.6s) is a good faster alternative.
 
 ## Run / deploy
 

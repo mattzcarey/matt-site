@@ -3,11 +3,15 @@
 import { SITE_CONTENT, canonicalStrings } from "./content";
 
 // Model selection. Both run through the Workers AI binding (env.AI) so there is
-// no external API key to manage — "fast" is a small Workers AI model, "capable"
-// is an OpenAI-catalog slug billed through Cloudflare's unified billing.
-// Swap these for whatever your account has access to.
+// no external API key to manage. Chosen from a latency benchmark of recent
+// coding models (median of 3 runs on a "restyle this CSS" prompt, 500 tokens):
+//   glm-4.7-flash  8.6s / 58 tok/s   (fastest by 2x)  <- Fast
+//   kimi-k2.6      17.6s / 28 tok/s
+//   glm-5.2        21.6s / 19 tok/s
+//   kimi-k2.7-code 37.2s / 12 tok/s  (code specialist) <- Capable
+// Swap for whatever your account has access to.
 export const FAST_MODEL = "@cf/zai-org/glm-4.7-flash";
-export const CAPABLE_MODEL = "openai/gpt-5.4";
+export const CAPABLE_MODEL = "@cf/moonshotai/kimi-k2.7-code";
 
 export type ModelChoice = "fast" | "capable";
 

@@ -27,17 +27,8 @@ importers:
         specifier: ^4.106.0
         version: 4.106.0(@cloudflare/workers-types@4.20260701.1)
 
-  apps/evolve:
-    devDependencies:
-      '@types/node':
-        specifier: ^20
-        version: 20.19.11
-
   apps/www:
     dependencies:
-      '@ai-sdk/openai':
-        specifier: ^3.0.79
-        version: 3.0.79(zod@4.4.3)
       '@astrojs/cloudflare':
         specifier: ^12.6.0
         version: 12.6.4(@types/node@20.19.11)(astro@5.13.2(@types/node@20.19.11)(jiti@1.21.7)(rollup@4.46.2)(typescript@5.9.2)(yaml@2.9.0))(jiti@1.21.7)(yaml@2.9.0)
@@ -4086,6 +4077,7 @@ snapshots:
       '@ai-sdk/provider': 3.0.13
       '@ai-sdk/provider-utils': 4.0.34(zod@4.4.3)
       zod: 4.4.3
+    optional: true
 
   '@ai-sdk/provider-utils@4.0.34(zod@4.4.3)':
     dependencies:

@@ -11,7 +11,6 @@ import {
   type CreateAppResult
 } from "@cloudflare/worker-bundler";
 import { createWorkersAI } from "workers-ai-provider";
-import { openai } from "workers-ai-provider/openai";
 import { BASE_FILES } from "./base-app";
 import { appOverlay } from "./overlay";
 import { SITE_CONTENT, canonicalStrings } from "./content";
@@ -66,11 +65,7 @@ export class UserApp extends Think<Env> {
 
   getModel() {
     const model = this.modelChoice === "fast" ? FAST_MODEL : CAPABLE_MODEL;
-    if (model.startsWith("@cf/")) {
-      return createWorkersAI({ binding: this.env.AI })(model);
-    }
-    // OpenAI catalog via the env.AI slug delegate (unified billing, no token).
-    return createWorkersAI({ binding: this.env.AI, providers: [openai] })(model);
+    return createWorkersAI({ binding: this.env.AI })(model);
   }
   getSystemPrompt() {
     return AGENT_SYSTEM;
