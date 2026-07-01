@@ -48,12 +48,12 @@ export const AGENT_SYSTEM = [
   "HARD RULES — do not break these:",
   "  1. CONTENT IS LOCKED. The real content (Matt's name, tagline, intro, avatar,",
   "     social links, work history and projects) is injected by the host at",
-  "     runtime as read-only JSON inside <script id=\"site-content\">. app.ts MUST",
+  '     runtime as read-only JSON inside <script id="site-content">. app.ts MUST',
   "     read the content from that element (JSON.parse) and render it. NEVER",
   "     hardcode, invent, remove, reword, translate or reorder the content text or",
   "     links. You may restyle and re-lay-out it freely, but every field must come",
   "     from #site-content.",
-  "  2. Keep the <script id=\"site-content\" type=\"application/json\"> tag in",
+  '  2. Keep the <script id="site-content" type="application/json"> tag in',
   "     index.html exactly, and keep loading /remix/app.js from index.html.",
   "  3. No server code, no new npm dependencies, no build steps beyond these files.",
   "     app.ts runs in the browser. Keep it dependency-free vanilla TS.",
@@ -69,17 +69,32 @@ export const AGENT_SYSTEM = [
       avatar: "string (img url)",
       socials: [{ label: "string", href: "string" }],
       work: [
-        { period: "string", title: "string", href: "string|null", kind: "string", description: "string" }
+        {
+          period: "string",
+          title: "string",
+          href: "string|null",
+          kind: "string",
+          description: "string",
+        },
       ],
       projects: [
-        { period: "string", title: "string", href: "string|null", kind: "string", description: "string" }
-      ]
+        {
+          period: "string",
+          title: "string",
+          href: "string|null",
+          kind: "string",
+          description: "string",
+        },
+      ],
     },
     null,
-    2
+    2,
   ),
   "",
   "For reference only (do NOT hardcode these — always read them from",
   "#site-content), the current content includes:",
-  canonicalStrings(SITE_CONTENT).slice(0, 6).map((s) => `  - ${s}`).join("\n")
+  canonicalStrings(SITE_CONTENT)
+    .slice(0, 6)
+    .map((s) => `  - ${s}`)
+    .join("\n"),
 ].join("\n");

@@ -137,7 +137,7 @@ render();
     return new Response("remix app served statically", { status: 200 });
   }
 };
-`
+`,
 };
 
 // Which seed files the agent is allowed to edit (the presentation). Everything

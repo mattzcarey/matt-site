@@ -1,12 +1,12 @@
-import fs from 'node:fs';
-import path from 'node:path';
-import sharp from 'sharp';
+import fs from "node:fs";
+import path from "node:path";
+import sharp from "sharp";
 
-const imagesDir = path.join(process.cwd(), 'public/images/og');
+const imagesDir = path.join(process.cwd(), "public/images/og");
 const maxWidth = 1200;
 const maxHeight = 630;
 
-const SUPPORTED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
+const SUPPORTED_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp", ".gif"];
 
 const processImage = async (filePath: string): Promise<void> => {
   const dir = path.dirname(filePath);
@@ -16,7 +16,7 @@ const processImage = async (filePath: string): Promise<void> => {
   try {
     await sharp(filePath)
       .resize(maxWidth, maxHeight, {
-        fit: 'contain',
+        fit: "contain",
         background: { r: 255, g: 255, b: 255, alpha: 1 },
       })
       .toFile(outputFilePath);
@@ -37,7 +37,7 @@ const main = async () => {
     });
 
     if (files.length === 0) {
-      console.log('No supported image files found');
+      console.log("No supported image files found");
       return;
     }
 
@@ -45,9 +45,9 @@ const main = async () => {
 
     await Promise.all(files.map((file) => processImage(path.join(imagesDir, file))));
 
-    console.log('All images processed!');
+    console.log("All images processed!");
   } catch (err) {
-    console.error('Error reading images directory:', err);
+    console.error("Error reading images directory:", err);
   }
 };
 

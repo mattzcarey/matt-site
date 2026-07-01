@@ -14,5 +14,5 @@ export default {
     const studio = await handleStudio(request, env);
     if (studio) return studio;
     return env.ASSETS.fetch(request);
-  }
+  },
 };

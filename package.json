@@ -1,29 +1,48 @@
 {
-    "name": "matt-site",
-    "private": true,
-    "scripts": {
-        "build": "turbo run build",
-        "dev": "turbo run dev",
-        "test": "turbo run test",
-        "types": "turbo run types",
-        "typecheck": "turbo run typecheck",
-        "check": "biome check .",
-        "check:fix": "biome check --write .",
-        "check:fix:unsafe": "biome check --write --unsafe .",
-        "prepare": "husky"
-    },
-    "devDependencies": {
-        "turbo": "latest",
-        "@biomejs/biome": "^2.2.0",
-        "@typescript/native-preview": "7.0.0-dev.20250816.1",
-        "husky": "^9.1.7",
-        "lint-staged": "^16.1.5",
-        "wrangler": "^4.106.0"
-    },
-    "packageManager": "pnpm@10.13.1",
-    "lint-staged": {
-        "*": [
-            "biome check --write --no-errors-on-unmatched"
-        ]
-    }
+  "name": "matt-site",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "astro": "astro",
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro build && wrangler dev",
+    "deploy": "wrangler deploy",
+    "cf-typegen": "wrangler types",
+    "check": "astro build && tsc && wrangler deploy --dry-run",
+    "lint": "oxlint",
+    "format": "oxfmt",
+    "format:check": "oxfmt --check"
+  },
+  "dependencies": {
+    "@astrojs/cloudflare": "^12.6.0",
+    "@astrojs/mdx": "^4.3.0",
+    "@astrojs/rss": "^4.0.11",
+    "@astrojs/sitemap": "^3.4.1",
+    "@astrojs/tailwind": "^6.0.2",
+    "@cloudflare/think": "^0.10.0",
+    "@cloudflare/worker-bundler": "^0.2.1",
+    "agents": "^0.17.0",
+    "astro": "^5.11.0",
+    "clsx": "^2.1.1",
+    "katex": "^0.16.22",
+    "rehype-katex": "^7.0.1",
+    "remark-math": "^6.0.0",
+    "remark-rehype": "^11.1.2",
+    "workers-ai-provider": "^3.2.0",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260424.1",
+    "@tailwindcss/typography": "^0.5.9",
+    "@types/node": "^20",
+    "autoprefixer": "^10.4.13",
+    "oxfmt": "^0.57.0",
+    "oxlint": "^1.72.0",
+    "postcss": "^8.4.21",
+    "tailwindcss": "^3.2.4",
+    "typescript": "^5.8.3",
+    "wrangler": "^4.106.0"
+  },
+  "packageManager": "pnpm@10.13.1"
 }

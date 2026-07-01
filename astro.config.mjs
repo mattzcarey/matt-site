@@ -1,14 +1,14 @@
-import cloudflare from '@astrojs/cloudflare';
-import mdx from '@astrojs/mdx';
-import sitemap from '@astrojs/sitemap';
-import tailwind from '@astrojs/tailwind';
-import { defineConfig } from 'astro/config';
-import rehypeKatex from 'rehype-katex';
-import remarkMath from 'remark-math';
+import cloudflare from "@astrojs/cloudflare";
+import mdx from "@astrojs/mdx";
+import sitemap from "@astrojs/sitemap";
+import tailwind from "@astrojs/tailwind";
+import { defineConfig } from "astro/config";
+import rehypeKatex from "rehype-katex";
+import remarkMath from "remark-math";
 
 export default defineConfig({
-  site: 'https://mattzcarey.com',
-  output: 'static',
+  site: "https://mattzcarey.com",
+  output: "static",
   integrations: [
     tailwind({
       applyBaseStyles: false,
@@ -31,7 +31,7 @@ export default defineConfig({
   vite: {
     resolve: {
       alias: {
-        '@': '/src',
+        "@": "/src",
       },
     },
   },

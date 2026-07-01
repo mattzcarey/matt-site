@@ -23,15 +23,11 @@ function safeForkId(raw: string | null): string | null {
   return /^[a-zA-Z0-9_-]+$/.test(id) ? id : null;
 }
 
-export async function handleStudio(
-  request: Request,
-  env: Env
-): Promise<Response | null> {
+export async function handleStudio(request: Request, env: Env): Promise<Response | null> {
   const url = new URL(request.url);
   const path = url.pathname;
 
-  const isStudioPage =
-    path === STUDIO_PREFIX || path.startsWith(STUDIO_PREFIX + "/");
+  const isStudioPage = path === STUDIO_PREFIX || path.startsWith(STUDIO_PREFIX + "/");
   const isStudioApi = path.startsWith("/api/remix/");
   if (!isStudioPage && !isStudioApi) return null; // not ours
 
@@ -40,10 +36,7 @@ export async function handleStudio(
   // ── API ───────────────────────────────────────────────────────────
   if (isStudioApi) {
     if (!forkId) {
-      return Response.json(
-        { error: "Start remixing first." },
-        { status: 401 }
-      );
+      return Response.json({ error: "Start remixing first." }, { status: 401 });
     }
     const agent = await getAgentByName(env.USERAPP, forkId);
 
@@ -66,8 +59,8 @@ export async function handleStudio(
         headers: {
           "content-type": "text/event-stream",
           "cache-control": "no-cache",
-          "x-accel-buffering": "no"
-        }
+          "x-accel-buffering": "no",
+        },
       });
     }
     if (path === "/api/remix/revert" && request.method === "POST") {

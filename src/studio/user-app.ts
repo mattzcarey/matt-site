@@ -8,7 +8,7 @@ import {
   createMemoryStorage,
   handleAssetRequest,
   type AssetStorage,
-  type CreateAppResult
+  type CreateAppResult,
 } from "@cloudflare/worker-bundler";
 import { createWorkersAI } from "workers-ai-provider";
 import { BASE_FILES } from "./base-app";
@@ -21,7 +21,7 @@ import {
   FAST_MODEL,
   ROOT,
   STUDIO_PREFIX,
-  type ModelChoice
+  type ModelChoice,
 } from "./config";
 
 interface Version {
@@ -52,7 +52,7 @@ export class UserApp extends Think<Env> {
   override workspace = new Workspace({
     sql: this.ctx.storage.sql,
     namespace: "user",
-    name: () => this.name
+    name: () => this.name,
   });
   workspaceBash = false;
   chatStreamStallTimeoutMs = 120000;
@@ -110,7 +110,7 @@ export class UserApp extends Think<Env> {
       client: "src/app.ts",
       server: "_server.ts",
       assets,
-      bundle: true
+      bundle: true,
     });
     this.build = built;
     this.buildStorage = createMemoryStorage(built.assets ?? {});
@@ -147,22 +147,18 @@ export class UserApp extends Think<Env> {
             id: "original",
             message: "Original site",
             files: this.baseFilesRelative(),
-            createdAt: 0
+            createdAt: 0,
           };
           versions = [base];
           await this.ctx.storage.put("versions", versions);
           await this.ctx.storage.put("currentId", base.id);
           await this.writeFiles(base.files);
         }
-        const currentId =
-          (await this.ctx.storage.get<string>("currentId")) ?? versions[0].id;
-        const current =
-          versions.find((v) => v.id === currentId) ?? versions[versions.length - 1];
+        const currentId = (await this.ctx.storage.get<string>("currentId")) ?? versions[0].id;
+        const current = versions.find((v) => v.id === currentId) ?? versions[versions.length - 1];
         // Rebuild from the workspace (edited files) so hot DOs keep their state.
         const onDisk = await this.readFiles();
-        await this.rebuild(
-          Object.keys(onDisk).length > 0 ? onDisk : current.files
-        );
+        await this.rebuild(Object.keys(onDisk).length > 0 ? onDisk : current.files);
       })();
       this.readyPromise.catch(() => {
         this.readyPromise = undefined;
@@ -186,8 +182,8 @@ export class UserApp extends Think<Env> {
         id: v.id,
         short: v.id === "original" ? "original" : v.id.slice(0, 7),
         message: v.message,
-        current: v.id === currentId
-      }))
+        current: v.id === currentId,
+      })),
     };
   }
 
@@ -199,7 +195,7 @@ export class UserApp extends Think<Env> {
     const stream = new ReadableStream<Uint8Array>({
       start(c) {
         controller = c;
-      }
+      },
     });
     const send = (obj: unknown) => {
       try {
@@ -229,7 +225,7 @@ export class UserApp extends Think<Env> {
           onDone: () => undefined,
           onError: (err: string) => {
             chatError = err;
-          }
+          },
         }).catch((err) => {
           chatError = String(err);
         });
@@ -279,8 +275,7 @@ export class UserApp extends Think<Env> {
     try {
       const versions = (await this.ctx.storage.get<Version[]>("versions")) ?? [];
       const currentId = await this.ctx.storage.get<string>("currentId");
-      const current =
-        versions.find((v) => v.id === currentId) ?? versions[versions.length - 1];
+      const current = versions.find((v) => v.id === currentId) ?? versions[versions.length - 1];
       if (current) {
         await this.workspace.rm(ROOT, { recursive: true }).catch(() => undefined);
         await this.writeFiles(current.files);
@@ -291,16 +286,13 @@ export class UserApp extends Think<Env> {
     }
   }
 
-  private async commitVersion(
-    message: string,
-    files: Record<string, string>
-  ): Promise<void> {
+  private async commitVersion(message: string, files: Record<string, string>): Promise<void> {
     const versions = (await this.ctx.storage.get<Version[]>("versions")) ?? [];
     const version: Version = {
       id: crypto.randomUUID(),
       message: message || "Update",
       files,
-      createdAt: Date.now()
+      createdAt: Date.now(),
     };
     versions.push(version);
     // Cap history so an ephemeral fork can't grow unbounded.
@@ -344,7 +336,7 @@ export class UserApp extends Think<Env> {
         new Request("https://remix.local" + sub),
         built.assetManifest,
         this.buildStorage!,
-        built.assetConfig
+        built.assetConfig,
       );
       return res ?? new Response("Not found", { status: 404 });
     }
@@ -352,11 +344,9 @@ export class UserApp extends Think<Env> {
     let html = (built.assets["/index.html"] as string) ?? "";
     html = html.replace(CONTENT_PLACEHOLDER, contentJson());
     const overlay = appOverlay(forked);
-    html = html.includes("</body>")
-      ? html.replace("</body>", overlay + "</body>")
-      : html + overlay;
+    html = html.includes("</body>") ? html.replace("</body>", overlay + "</body>") : html + overlay;
     return new Response(html, {
-      headers: { "content-type": "text/html;charset=utf-8", "cache-control": "no-store" }
+      headers: { "content-type": "text/html;charset=utf-8", "cache-control": "no-store" },
     });
   }
 }

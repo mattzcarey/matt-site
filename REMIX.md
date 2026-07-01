@@ -8,13 +8,13 @@ locked.
 
 ## How it differs from the cjol demo
 
-| cjol/per-user-fork-studio | this |
-| --- | --- |
-| Artifacts git host + per-user repos | none — forks are ephemeral, no artifacts |
+| cjol/per-user-fork-studio                              | this                                                                                         |
+| ------------------------------------------------------ | -------------------------------------------------------------------------------------------- |
+| Artifacts git host + per-user repos                    | none — forks are ephemeral, no artifacts                                                     |
 | Worker Loader runs each fork's server code (a sandbox) | **no Worker Loader / no sandbox** — the fork is a client bundle run in the visitor's browser |
-| AI edits everything, incl. content/behaviour | AI edits **presentation only**; content is injected read-only and lock-checked |
-| Separate `fork-studio` worker | lives on the **main site worker** at `/remix` |
-| cookie login + named forks | anonymous `localStorage` id, mirrored to a cookie for routing |
+| AI edits everything, incl. content/behaviour           | AI edits **presentation only**; content is injected read-only and lock-checked               |
+| Separate `fork-studio` worker                          | lives on the **main site worker** at `/remix`                                                |
+| cookie login + named forks                             | anonymous `localStorage` id, mirrored to a cookie for routing                                |
 
 ## Architecture
 
@@ -44,7 +44,7 @@ POST /api/remix/revert, /api/remix/reset
      `#site-content` element, or the client that reads it;
   3. content is re-injected fresh on every render.
 
-  This is a *reasonable* lock for a playground, not a hard security boundary: the
+  This is a _reasonable_ lock for a playground, not a hard security boundary: the
   AI still writes the render code, so a determined prompt could in theory render
   the injected data oddly. If you want an absolute lock, render the content HTML
   host-side into a fixed slot and let the AI theme only via CSS (noted below).
@@ -65,12 +65,12 @@ Both run through the `AI` binding (no external key, all Workers AI). Chosen from
 latency benchmark of recent coding models (median of 3 runs on a "restyle this
 CSS" prompt, 500 tokens):
 
-| model | median | tok/s | role |
-| --- | --- | --- | --- |
-| `@cf/zai-org/glm-4.7-flash` | 8.6s | 58 | **Fast** (fastest by 2x) |
-| `@cf/moonshotai/kimi-k2.6` | 17.6s | 28 | |
-| `@cf/zai-org/glm-5.2` | 21.6s | 19 | |
-| `@cf/moonshotai/kimi-k2.7-code` | 37.2s | 12 | **Capable** (code specialist) |
+| model                           | median | tok/s | role                          |
+| ------------------------------- | ------ | ----- | ----------------------------- |
+| `@cf/zai-org/glm-4.7-flash`     | 8.6s   | 58    | **Fast** (fastest by 2x)      |
+| `@cf/moonshotai/kimi-k2.6`      | 17.6s  | 28    |                               |
+| `@cf/zai-org/glm-5.2`           | 21.6s  | 19    |                               |
+| `@cf/moonshotai/kimi-k2.7-code` | 37.2s  | 12    | **Capable** (code specialist) |
 
 Swap in `src/studio/config.ts`. If the 37s Capable latency is too slow for the
 UI, `@cf/moonshotai/kimi-k2.6` (17.6s) is a good faster alternative.
@@ -78,8 +78,8 @@ UI, `@cf/moonshotai/kimi-k2.6` (17.6s) is a good faster alternative.
 ## Run / deploy
 
 ```bash
-pnpm --filter @matt-site/www dev        # needs `wrangler login` (AI binding is remote)
-pnpm --filter @matt-site/www deploy
+pnpm dev        # needs `wrangler login` (AI binding is remote)
+pnpm deploy
 ```
 
 Validated locally without AI (base render, worker-bundler build in workerd,
@@ -96,4 +96,3 @@ or deploy, to try "Generate new version".
   ephemeral so upstream merge is less relevant), naming forks.
 - Harder content lock option: host-render the content into a fixed slot, AI themes
   via CSS only.
-```
