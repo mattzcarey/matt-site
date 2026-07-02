@@ -2,24 +2,10 @@
 // injects the fork's theme into the real prerendered pages.
 
 import { getAgentByName } from "agents";
-import { FORK_COOKIE } from "./config";
+import { hasPaidGrant } from "./auth";
+import { forkIdFrom } from "./cookies";
 
-function getCookie(request: Request, name: string): string | null {
-  const header = request.headers.get("Cookie") ?? "";
-  for (const part of header.split(";")) {
-    const [k, ...v] = part.trim().split("=");
-    if (k === name) return decodeURIComponent(v.join("="));
-  }
-  return null;
-}
-
-// A fork id is a client-generated opaque token; keep it to safe chars.
-export function forkIdFrom(request: Request): string | null {
-  const raw = getCookie(request, FORK_COOKIE);
-  if (!raw) return null;
-  const id = raw.trim().slice(0, 64);
-  return /^[a-zA-Z0-9_-]+$/.test(id) ? id : null;
-}
+export { forkIdFrom } from "./cookies";
 
 export async function handleStudioApi(request: Request, env: Env): Promise<Response | null> {
   const url = new URL(request.url);
@@ -44,7 +30,8 @@ export async function handleStudioApi(request: Request, env: Env): Promise<Respo
     id?: string;
   };
   if (path === "/api/remix/agent" && request.method === "POST") {
-    const stream = await agent.streamAgentEdit(String(body.prompt ?? ""));
+    const allowPaid = await hasPaidGrant(request, env, forkId);
+    const stream = await agent.streamAgentEdit(String(body.prompt ?? ""), allowPaid);
     return new Response(stream, {
       headers: {
         "content-type": "text/event-stream",
