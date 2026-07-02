@@ -3,18 +3,9 @@
 // injects the committed CSS into the real prerendered pages at serve time.
 // Content is locked architecturally — the HTML never passes through the agent.
 
+import { createOpenAI } from "@ai-sdk/openai";
 import { Think, Workspace } from "@cloudflare/think";
-import { createWorkersAI } from "workers-ai-provider";
-import {
-  AGENT_SYSTEM,
-  CAPABLE_MODEL,
-  FAST_MODEL,
-  ROOT,
-  SEED_THEME,
-  SNAPSHOT_PAGES,
-  THEME_FILE,
-  type ModelChoice,
-} from "./config";
+import { AGENT_SYSTEM, MODEL, ROOT, SEED_THEME, SNAPSHOT_PAGES, THEME_FILE } from "./config";
 
 interface Version {
   id: string;
@@ -44,12 +35,10 @@ export class UserApp extends Think<Env> {
   workspaceBash = false;
   chatStreamStallTimeoutMs = 120000;
 
-  private modelChoice: ModelChoice = "fast";
   private readyPromise?: Promise<void>;
 
   getModel() {
-    const model = this.modelChoice === "fast" ? FAST_MODEL : CAPABLE_MODEL;
-    return createWorkersAI({ binding: this.env.AI })(model);
+    return createOpenAI({ apiKey: this.env.OPENAI_API_KEY })(MODEL);
   }
   getSystemPrompt() {
     return AGENT_SYSTEM;
@@ -74,9 +63,7 @@ export class UserApp extends Think<Env> {
           return;
         }
 
-        // Fresh fork, or one from the previous architecture — start clean:
-        // old workspace files, version history, and chat history are all
-        // meaningless under the theme.css layout.
+        // Fresh fork, or one from a previous seed layout — start clean.
         await this.workspace.rm(ROOT, { recursive: true }).catch(() => undefined);
         await this.clearMessages().catch(() => undefined);
         // Snapshot the real prerendered pages so the agent can read the actual
@@ -137,8 +124,7 @@ export class UserApp extends Think<Env> {
   }
 
   // ── RPC: agentic restyle (SSE stream) ───────────────────────────────
-  streamAgentEdit(prompt: string, model: ModelChoice = "fast"): ReadableStream {
-    this.modelChoice = model;
+  streamAgentEdit(prompt: string): ReadableStream {
     const enc = new TextEncoder();
     let controller: ReadableStreamDefaultController<Uint8Array>;
     const stream = new ReadableStream<Uint8Array>({
@@ -168,7 +154,8 @@ export class UserApp extends Think<Env> {
         const before = (await this.workspace.readFile(THEME_FILE).catch(() => "")) ?? "";
 
         let chatError = "";
-        await this.chat(prompt, {
+        // Cap the total turn duration.
+        const turn = this.chat(prompt, {
           onStart: () => send({ kind: "status", text: "Thinking..." }),
           onEvent: (json: string) => send({ kind: "event", chunk: json }),
           onDone: () => undefined,
@@ -178,11 +165,18 @@ export class UserApp extends Think<Env> {
         }).catch((err) => {
           chatError = String(err);
         });
+        const timeout = new Promise<"timeout">((resolve) =>
+          setTimeout(() => resolve("timeout"), 120_000),
+        );
+        if ((await Promise.race([turn, timeout])) === "timeout") {
+          send({ kind: "done", error: "That took too long — please try again." });
+          return close();
+        }
 
         if (chatError) {
           // A deploy resets live DOs mid-query; the retry lands on fresh code.
           const friendly = /code was updated/i.test(chatError)
-            ? "The site just redeployed under you — hit the button again."
+            ? "The site was just redeployed — please try again."
             : "Agent error: " + chatError.slice(0, 200);
           send({ kind: "done", error: friendly });
           return close();

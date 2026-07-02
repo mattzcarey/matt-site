@@ -50,11 +50,11 @@ forked visitor   -> same real HTML, with <style id="remix-theme"> injected
 - `src/studio/overlay.ts` — the site-styled floating widget.
 - `src/studio/config.ts` — models, agent system prompt, constants.
 
-## Models
+## Model
 
-Both via the `AI` binding (no key): Fast = `@cf/zai-org/glm-4.7-flash`
-(most consistent in benchmarks), Capable = `@cf/moonshotai/kimi-k2.7-code`
-(slower, strongest coder). Swap in `src/studio/config.ts`.
+`gpt-5.4-mini` via the OpenAI API (`@ai-sdk/openai`). Set the `OPENAI_API_KEY`
+secret (`wrangler secret put OPENAI_API_KEY`; `.env` for local dev). The model
+lives in `src/studio/config.ts`. Turns are capped at 120s.
 
 ## Run / deploy
 

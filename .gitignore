@@ -27,6 +27,7 @@ yarn-error.log*
 
 # local env files
 .env*.local
+.env
 
 # typescript
 *.tsbuildinfo
@@ -39,3 +40,5 @@ next-env.d.ts
 .astro
 .turbo
 dist
+# env files with secrets
+.env

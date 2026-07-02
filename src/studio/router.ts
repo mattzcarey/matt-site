@@ -2,7 +2,7 @@
 // injects the fork's theme into the real prerendered pages.
 
 import { getAgentByName } from "agents";
-import { FORK_COOKIE, type ModelChoice } from "./config";
+import { FORK_COOKIE } from "./config";
 
 function getCookie(request: Request, name: string): string | null {
   const header = request.headers.get("Cookie") ?? "";
@@ -42,11 +42,9 @@ export async function handleStudioApi(request: Request, env: Env): Promise<Respo
   const body = (await request.json().catch(() => ({}))) as {
     prompt?: string;
     id?: string;
-    model?: string;
   };
   if (path === "/api/remix/agent" && request.method === "POST") {
-    const model: ModelChoice = body.model === "capable" ? "capable" : "fast";
-    const stream = await agent.streamAgentEdit(String(body.prompt ?? ""), model);
+    const stream = await agent.streamAgentEdit(String(body.prompt ?? ""));
     return new Response(stream, {
       headers: {
         "content-type": "text/event-stream",

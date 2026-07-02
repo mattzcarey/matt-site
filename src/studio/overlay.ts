@@ -32,10 +32,6 @@ background:#171717;color:#fff;font-weight:600;font-size:14px;cursor:pointer;font
 .rx-revert{background:transparent;color:#525252;border:1px solid #d4d4d4;border-radius:6px;
 padding:3px 10px;font-size:12px;cursor:pointer;font-family:inherit}
 .rx-revert:hover{border-color:#737373;color:#171717}
-.rx-toggle{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:2px 0 10px}
-.rx-mode{background:transparent;color:#737373;border:1px solid #d4d4d4;border-radius:6px;
-padding:4px 10px;font-size:12px;cursor:pointer;font-family:inherit}
-.rx-mode.on{background:#171717;color:#fff;border-color:#171717;font-weight:600}
 @media (prefers-color-scheme: dark){
 #remix-fab{background:#111010;border-color:#262626;color:#a3a3a3}
 #remix-fab:hover{color:#fff;border-color:#525252}
@@ -50,8 +46,6 @@ padding:4px 10px;font-size:12px;cursor:pointer;font-family:inherit}
 .rx-commit code{color:#a3a3a3}
 .rx-revert{color:#a3a3a3;border-color:#333}
 .rx-revert:hover{border-color:#737373;color:#fff}
-.rx-mode{color:#a3a3a3;border-color:#333}
-.rx-mode.on{background:#fff;color:#111;border-color:#fff}
 }
 </style>`;
 
@@ -82,13 +76,6 @@ const OVERLAY_SCRIPT = `<script>
   function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
   function setStatus(t,err){ var e=document.getElementById('rx-status'); if(e){ e.textContent=t||''; e.style.color=err?'#dc2626':''; } }
 
-  var toggleHtml='<div class="rx-toggle"><span class="muted">Model</span>'
-    +'<button class="rx-mode" data-m="fast">Fast</button>'
-    +'<button class="rx-mode" data-m="capable">Capable</button></div>';
-  function curModel(){ try{ return localStorage.getItem('remixModel')==='capable'?'capable':'fast'; }catch(e){ return 'fast'; } }
-  function paintToggle(){ var cur=curModel(); var b=panel.querySelectorAll('.rx-mode'); for(var i=0;i<b.length;i++){ b[i].className='rx-mode'+(b[i].getAttribute('data-m')===cur?' on':''); } }
-  function wireToggle(){ var b=panel.querySelectorAll('.rx-mode'); for(var i=0;i<b.length;i++){ b[i].addEventListener('click', function(){ try{localStorage.setItem('remixModel',this.getAttribute('data-m'));}catch(e){} paintToggle(); }); } paintToggle(); }
-
   function render(){
     if(!forked()){
       panel.innerHTML='<h3>Remix this site</h3>'
@@ -98,7 +85,6 @@ const OVERLAY_SCRIPT = `<script>
       return;
     }
     panel.innerHTML='<h3>Customize with AI</h3>'
-      +toggleHtml
       +'<textarea id="rx-prompt" placeholder="Describe a look... e.g. retro pixel terminal, brutalist newspaper, soft pastel zine"></textarea>'
       +'<button class="act" id="rx-gen">Restyle this site</button>'
       +'<div id="rx-status" class="muted" style="margin-top:8px"></div>'
@@ -107,7 +93,6 @@ const OVERLAY_SCRIPT = `<script>
       +'<a href="#" id="rx-reset" style="font-size:12px">Discard remix</a></div>';
     document.getElementById('rx-gen').onclick=generate;
     document.getElementById('rx-reset').onclick=function(e){ e.preventDefault(); reset(); };
-    wireToggle();
     loadLog();
   }
 
@@ -135,7 +120,7 @@ const OVERLAY_SCRIPT = `<script>
   function generate(){
     var p=(document.getElementById('rx-prompt').value||'').trim(); if(!p) return;
     var gen=document.getElementById('rx-gen'); gen.disabled=true; setStatus('Starting...');
-    fetch('/api/remix/agent',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({prompt:p,model:curModel()})})
+    fetch('/api/remix/agent',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({prompt:p})})
       .then(function(resp){
         if(!resp.body){ throw new Error('no stream'); }
         var reader=resp.body.getReader(); var dec=new TextDecoder(); var buf='';

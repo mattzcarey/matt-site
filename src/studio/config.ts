@@ -1,13 +1,7 @@
 // Shared constants for the remix studio.
 
-// Model selection. Both run through the Workers AI binding (env.AI) — no
-// external API key. Chosen from a latency benchmark of recent big coding models
-// on Workers AI: glm-4.7-flash was the most consistent fast model; kimi-k2.7-code
-// is slower but the strongest coder. Swap for whatever your account has.
-export const FAST_MODEL = "@cf/zai-org/glm-4.7-flash";
-export const CAPABLE_MODEL = "@cf/moonshotai/kimi-k2.7-code";
-
-export type ModelChoice = "fast" | "capable";
+// Model for the restyling agent, via the OpenAI API (OPENAI_API_KEY secret).
+export const MODEL = "gpt-5.4-mini";
 
 // Cookie mirroring the localStorage fork id so the worker can route a visitor
 // to their own ephemeral fork Durable Object.
