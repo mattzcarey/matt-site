@@ -56,11 +56,29 @@ export class UserApp extends Think<Env> {
   }
 
   // ── lifecycle ───────────────────────────────────────────────────────
+  // Bump when the seed layout changes; forks from older layouts are reseeded.
+  private static readonly SEED_VERSION = 2;
+
   private async ensureReady(): Promise<void> {
     if (!this.readyPromise) {
       this.readyPromise = (async () => {
+        const seeded = await this.ctx.storage.get<number>("seedVersion");
+        if (seeded === UserApp.SEED_VERSION) return;
+
+        // A fork created just before seedVersion existed is already v2-shaped
+        // (it has a theme file) — backfill the marker without wiping it.
+        const hasTheme = (await this.workspace.readFile(THEME_FILE).catch(() => null)) !== null;
         const versions = await this.ctx.storage.get<Version[]>("versions");
-        if (versions && versions.length > 0) return;
+        if (hasTheme && versions && versions.length > 0) {
+          await this.ctx.storage.put("seedVersion", UserApp.SEED_VERSION);
+          return;
+        }
+
+        // Fresh fork, or one from the previous architecture — start clean:
+        // old workspace files, version history, and chat history are all
+        // meaningless under the theme.css layout.
+        await this.workspace.rm(ROOT, { recursive: true }).catch(() => undefined);
+        await this.clearMessages().catch(() => undefined);
         // Snapshot the real prerendered pages so the agent can read the actual
         // markup it is styling.
         for (const [route, file] of SNAPSHOT_PAGES) {
@@ -82,6 +100,7 @@ export class UserApp extends Think<Env> {
         };
         await this.ctx.storage.put("versions", [original]);
         await this.ctx.storage.put("currentId", original.id);
+        await this.ctx.storage.put("seedVersion", UserApp.SEED_VERSION);
       })();
       this.readyPromise.catch(() => {
         this.readyPromise = undefined;
@@ -161,7 +180,11 @@ export class UserApp extends Think<Env> {
         });
 
         if (chatError) {
-          send({ kind: "done", error: "Agent error: " + chatError.slice(0, 200) });
+          // A deploy resets live DOs mid-query; the retry lands on fresh code.
+          const friendly = /code was updated/i.test(chatError)
+            ? "The site just redeployed under you — hit the button again."
+            : "Agent error: " + chatError.slice(0, 200);
+          send({ kind: "done", error: friendly });
           return close();
         }
 
