@@ -5,6 +5,8 @@
 
 import { createOpenAI } from "@ai-sdk/openai";
 import { Think, Workspace } from "@cloudflare/think";
+import { generateText } from "ai";
+import { createWorkersAI } from "workers-ai-provider";
 import { AGENT_SYSTEM, MODEL, ROOT, SEED_THEME, SNAPSHOT_PAGES, THEME_FILE } from "./config";
 
 interface Version {
@@ -26,6 +28,17 @@ export interface RemixState {
   error?: string;
 }
 
+// Pull usable CSS out of a model reply: unwrap markdown fences, drop anything
+// that could close the injected <style> tag, reject non-CSS.
+function extractCss(text: string): string | null {
+  let out = text.trim();
+  const fence = out.match(/```(?:css)?\s*([\s\S]*?)```/);
+  if (fence) out = fence[1].trim();
+  out = out.replace(/<\/style/gi, "");
+  if (!out.includes("{") || !out.includes("}")) return null;
+  return out;
+}
+
 export class UserApp extends Think<Env> {
   override workspace = new Workspace({
     sql: this.ctx.storage.sql,
@@ -38,6 +51,9 @@ export class UserApp extends Think<Env> {
   private readyPromise?: Promise<void>;
 
   getModel() {
+    if (MODEL.startsWith("@cf/")) {
+      return createWorkersAI({ binding: this.env.AI })(MODEL);
+    }
     return createOpenAI({ apiKey: this.env.OPENAI_API_KEY })(MODEL);
   }
   getSystemPrompt() {
@@ -150,45 +166,38 @@ export class UserApp extends Think<Env> {
     const run = async () => {
       try {
         await this.ensureReady();
-        send({ kind: "status", text: "Agent starting..." });
-        const before = (await this.workspace.readFile(THEME_FILE).catch(() => "")) ?? "";
+        send({ kind: "status", text: "Reading the site..." });
+        const current = (await this.workspace.readFile(THEME_FILE).catch(() => "")) ?? "";
 
-        let chatError = "";
-        // Cap the total turn duration.
-        const turn = this.chat(prompt, {
-          onStart: () => send({ kind: "status", text: "Thinking..." }),
-          onEvent: (json: string) => send({ kind: "event", chunk: json }),
-          onDone: () => undefined,
-          onError: (err: string) => {
-            chatError = err;
-          },
-        }).catch((err) => {
-          chatError = String(err);
+        send({ kind: "status", text: "Designing your theme..." });
+        const call = generateText({
+          model: this.getModel(),
+          system: AGENT_SYSTEM,
+          prompt: await this.buildPrompt(prompt, current),
+          maxOutputTokens: 3000,
         });
         const timeout = new Promise<"timeout">((resolve) =>
           setTimeout(() => resolve("timeout"), 120_000),
         );
-        if ((await Promise.race([turn, timeout])) === "timeout") {
+        const raced = await Promise.race([call.then((r) => r.text), timeout]).catch((err) => {
+          // A deploy resets live DOs mid-query; the retry lands on fresh code.
+          throw /code was updated/i.test(String(err))
+            ? new Error("The site was just redeployed — please try again.")
+            : err;
+        });
+        if (raced === "timeout") {
           send({ kind: "done", error: "That took too long — please try again." });
           return close();
         }
 
-        if (chatError) {
-          // A deploy resets live DOs mid-query; the retry lands on fresh code.
-          const friendly = /code was updated/i.test(chatError)
-            ? "The site was just redeployed — please try again."
-            : "Agent error: " + chatError.slice(0, 200);
-          send({ kind: "done", error: friendly });
+        const css = extractCss(raced);
+        if (!css || css === current.trim()) {
+          send({ kind: "done", error: "That didn't produce a new style. Try rephrasing." });
           return close();
         }
 
-        const after = (await this.workspace.readFile(THEME_FILE).catch(() => "")) ?? "";
-        if (after === before || after.trim() === "") {
-          send({ kind: "done", error: "The agent made no style changes. Try rephrasing." });
-          return close();
-        }
-
-        await this.commitVersion(prompt.slice(0, 72), after);
+        await this.workspace.writeFile(THEME_FILE, css);
+        await this.commitVersion(prompt.slice(0, 72), css);
         send({ kind: "done", ok: true });
         close();
       } catch (err) {
@@ -198,6 +207,34 @@ export class UserApp extends Think<Env> {
     };
     run();
     return stream;
+  }
+
+  // One user message: the request, the current theme, and the real markup
+  // (page snapshots, minus scripts/styles/svg noise) to write selectors against.
+  private async buildPrompt(request: string, currentTheme: string): Promise<string> {
+    const pages: string[] = [];
+    for (const file of ["home.html", "work.html"]) {
+      const raw = await this.workspace.readFile(`${ROOT}/pages/${file}`).catch(() => null);
+      if (!raw) continue;
+      const cleaned = raw
+        .replace(/<script[\s\S]*?<\/script>/gi, "")
+        .replace(/<style[\s\S]*?<\/style>/gi, "")
+        .replace(/<svg[\s\S]*?<\/svg>/gi, "<svg/>")
+        .replace(/\s+/g, " ")
+        .slice(0, 5000);
+      pages.push(`----- ${file} -----\n${cleaned}`);
+    }
+    return [
+      `REQUEST: ${request}`,
+      "",
+      "CURRENT THEME CSS (empty = original site):",
+      currentTheme.trim() || "(none)",
+      "",
+      "REAL PAGE MARKUP:",
+      pages.join("\n\n") || "(snapshots unavailable — style body, h1-h3, main, aside, a)",
+      "",
+      "Reply with the complete new stylesheet, CSS only.",
+    ].join("\n");
   }
 
   private async commitVersion(message: string, css: string): Promise<void> {

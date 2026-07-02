@@ -52,9 +52,11 @@ forked visitor   -> same real HTML, with <style id="remix-theme"> injected
 
 ## Model
 
-`gpt-5.4-mini` via the OpenAI API (`@ai-sdk/openai`). Set the `OPENAI_API_KEY`
-secret (`wrangler secret put OPENAI_API_KEY`; `.env` for local dev). The model
-lives in `src/studio/config.ts`. Turns are capped at 120s.
+`@cf/openai/gpt-oss-20b` on the Workers AI binding. A restyle is a **single
+model call** (request + current theme + real page markup → complete new
+stylesheet) — no tool loop, ~10-16s per turn, capped at 120s. The model lives
+in `src/studio/config.ts`: `@cf/` slugs use the AI binding; any other id goes
+to the OpenAI API via the `OPENAI_API_KEY` secret (`.env` for local dev).
 
 ## Run / deploy
 

@@ -1,7 +1,14 @@
 // Shared constants for the remix studio.
 
-// Model for the restyling agent, via the OpenAI API (OPENAI_API_KEY secret).
-export const MODEL = "gpt-5.4-mini";
+// Model for the restyling agent. "@cf/" slugs run on the Workers AI binding;
+// anything else goes to the OpenAI API (OPENAI_API_KEY secret).
+// Benchmarked on the full theme task (complete CSS, warmed, median of 2):
+// gpt-oss-20b 7.4s / gpt-oss-120b 15.8s (both clean, complete, keyframes);
+// llama-4-scout 6.7s but invalid selectors; qwen2.5-coder thin output;
+// glm-4.7-flash 40s / kimi-k2.6 34s / glm-5.2 53s — thinking models truncate
+// at the token cap on themes this size.
+// Full restyle turn (single call, real prompt): 20b ~10-16s, 120b ~35s.
+export const MODEL = "@cf/openai/gpt-oss-20b";
 
 // Cookie mirroring the localStorage fork id so the worker can route a visitor
 // to their own ephemeral fork Durable Object.
@@ -25,38 +32,32 @@ export const SEED_THEME = `/* Your remix of mattzcarey.com.
  * so rules here override the defaults. The HTML never changes — only style. */
 `;
 
-// System prompt for the restyling agent. The content lock is architectural:
-// the only file that affects the served site is theme.css, so the agent cannot
-// change markup or content no matter what it writes.
+// System prompt for the single-call restyle. The content lock is architectural:
+// the only thing the model produces is CSS, so it cannot change markup or
+// content no matter what it writes.
 export const AGENT_SYSTEM = [
   "You are an expert CSS artist restyling Matt Carey's personal website",
-  "(mattzcarey.com). The user will describe a look — a vibe, a theme, a layout",
+  "(mattzcarey.com). The user describes a look — a vibe, a theme, a layout",
   "tweak — and you deliver it with CSS alone.",
   "",
-  "THE ONE FILE THAT MATTERS: /site/theme.css. It is loaded on EVERY page of",
-  "the real site, after the site's own stylesheets, so your rules cascade over",
-  "the defaults. Edit it with the file tools (read it first, then write/edit).",
+  "You output the COMPLETE new stylesheet (not a diff). It is injected on every",
+  "page AFTER the site's own Tailwind CSS, so your rules cascade over the",
+  "defaults; prefer element/structural selectors (body, h1, main, aside, nav a)",
+  "over exact utility-class strings, and use !important when a Tailwind utility",
+  "wins the cascade. The user's message includes the current theme CSS and the",
+  "real page markup — build on the current theme when the request is an",
+  "adjustment, replace it when the request is a new look.",
   "",
-  "REFERENCE: the site's real prerendered HTML is in /site/pages/*.html",
-  "(home, work, projects, blog). READ the relevant pages before styling so your",
-  "selectors match the actual markup. The site is built with Tailwind utility",
-  "classes; prefer element/structural selectors (body, h1, main, aside, nav a,",
-  "[class*='prose']) over exact utility-class strings, and use !important when",
-  "a Tailwind utility wins the cascade.",
-  "",
-  "Notes on the site: light mode is white/black, dark mode (prefers-color-scheme)",
-  "is #111010/white; headings use 'Kaisei Tokumin' serif via --font-kaisei.",
-  "Your theme may override both modes — if you set backgrounds, set text colors",
-  "too, and keep text readable.",
+  "Site notes: light mode is white/black, dark mode (prefers-color-scheme) is",
+  "#111010/white; headings use 'Kaisei Tokumin' serif via --font-kaisei. If you",
+  "set backgrounds, set text colors for BOTH modes, and keep text readable.",
   "",
   "RULES:",
-  "  1. CSS only. You cannot change HTML or content, so do not try — no",
-  "     `content:` tricks to reword text, and do not hide the site's content.",
-  "  2. Do not hide or move #remix-widget (the floating remix widget; its",
-  "     internals are in a shadow root your CSS cannot reach anyway).",
-  "  3. External URLs: only Google Fonts (@import from fonts.googleapis.com) is",
-  "     allowed. No other external resources, scripts, or trackers.",
-  "  4. Deliver a complete, coherent theme in one pass: colors, typography,",
-  "     spacing, and at least one delightful touch (a hover, a transition, a",
-  "     texture). Bold is good; broken is not.",
+  "  1. Output ONLY CSS. No prose, no markdown fences, no HTML.",
+  "  2. Do not hide the site's content and do not use `content:` to reword it.",
+  "  3. Do not hide or move #remix-widget (the floating remix widget).",
+  "  4. External URLs: only Google Fonts (@import url('https://fonts.googleapis.com/...'))",
+  "     is allowed. No other external resources.",
+  "  5. Deliver a complete, coherent theme: colors, typography, spacing, and at",
+  "     least one delightful touch (a hover, a transition, an animation).",
 ].join("\n");
