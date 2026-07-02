@@ -227,9 +227,15 @@ export class UserApp extends Think<Env> {
   }
 
   // ── RPC: discard the whole fork ─────────────────────────────────────
+  // Deletes only this studio's state. storage.deleteAll() would drop the
+  // Think/Workspace SQL tables under the live instance (every call after a
+  // reset then fails with "no such table" until the DO is evicted).
   async resetSelf(): Promise<void> {
     await this.workspace.rm(ROOT, { recursive: true }).catch(() => undefined);
-    await this.ctx.storage.deleteAll();
+    await this.clearMessages().catch(() => undefined);
+    for (const key of ["versions", "currentId", "seedVersion"]) {
+      await this.ctx.storage.delete(key);
+    }
     this.readyPromise = undefined;
   }
 }

@@ -2,10 +2,13 @@
 // Styled to match the site: white/#111010 surfaces, neutral grays, Kaisei
 // Tokumin serif headings, dark mode via prefers-color-scheme.
 //
+// The widget mounts inside a Shadow DOM root with its own stylesheet, so remix
+// theme CSS (which targets the page) cannot restyle it.
+//
 // The whole flow happens in place on whatever page you're on: start a remix,
-// describe a change, the page reloads restyled. No separate studio page.
+// describe a change, the page reloads restyled.
 
-const OVERLAY_STYLE = `<style>
+const WIDGET_CSS = `
 #remix-fab{position:fixed;right:20px;bottom:20px;width:44px;height:44px;border-radius:9999px;
 border:1px solid #e5e5e5;background:#fff;color:#737373;cursor:pointer;
 display:grid;place-items:center;z-index:2147483000;transition:color .15s,border-color .15s}
@@ -28,7 +31,7 @@ background:#171717;color:#fff;font-weight:600;font-size:14px;cursor:pointer;font
 .rx-commit{border:1px solid #e5e5e5;border-radius:8px;padding:8px 10px;margin:6px 0}
 .rx-commit .rx-msg{font-size:13px;margin-bottom:4px}
 .rx-commit .rx-row{display:flex;align-items:center;gap:8px}
-.rx-commit code{color:#737373;font-size:12px;flex:1}
+.rx-commit code{color:#737373;font-size:12px;flex:1;font-family:ui-monospace,monospace}
 .rx-revert{background:transparent;color:#525252;border:1px solid #d4d4d4;border-radius:6px;
 padding:3px 10px;font-size:12px;cursor:pointer;font-family:inherit}
 .rx-revert:hover{border-color:#737373;color:#171717}
@@ -47,7 +50,7 @@ padding:3px 10px;font-size:12px;cursor:pointer;font-family:inherit}
 .rx-revert{color:#a3a3a3;border-color:#333}
 .rx-revert:hover{border-color:#737373;color:#fff}
 }
-</style>`;
+`;
 
 const OVERLAY_SCRIPT = `<script>
 (function(){
@@ -64,24 +67,35 @@ const OVERLAY_SCRIPT = `<script>
   function forked(){ return !!stored(); }
   if(forked()) setCookie(stored());
 
+  // Shadow DOM: the widget carries its own stylesheet; page/theme CSS can't
+  // reach inside.
+  var host=document.createElement('div');
+  host.id='remix-widget';
+  var root=host.attachShadow({mode:'open'});
+  var style=document.createElement('style');
+  style.textContent=__RX_CSS__;
+  root.appendChild(style);
+
   var fab=document.createElement('button');
   fab.id='remix-fab';
   fab.title=forked()?'Customize your remix':'Remix this site';
   fab.innerHTML='<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2.2"/><circle cx="18" cy="6" r="2.2"/><circle cx="12" cy="19" r="2.2"/><path d="M6 8.2v1.3a3 3 0 0 0 3 3h6a3 3 0 0 0 3-3V8.2"/><path d="M12 12.8v4"/></svg>';
   var panel=document.createElement('div');
   panel.id='remix-panel'; panel.style.display='none';
-  document.body.appendChild(panel); document.body.appendChild(fab);
+  root.appendChild(panel); root.appendChild(fab);
+  document.body.appendChild(host);
+  function $(id){ return root.getElementById(id); }
   var open=false;
   fab.onclick=function(){ open=!open; panel.style.display=open?'block':'none'; if(open) render(); };
   function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
-  function setStatus(t,err){ var e=document.getElementById('rx-status'); if(e){ e.textContent=t||''; e.style.color=err?'#dc2626':''; } }
+  function setStatus(t,err){ var e=$('rx-status'); if(e){ e.textContent=t||''; e.style.color=err?'#dc2626':''; } }
 
   function render(){
     if(!forked()){
       panel.innerHTML='<h3>Remix this site</h3>'
         +'<p class="muted">Restyle it with AI. Only you see your version.</p>'
         +'<button class="act" id="rx-start">Start remixing</button>';
-      document.getElementById('rx-start').onclick=function(){ setCookie(forkId()); render(); };
+      $('rx-start').onclick=function(){ setCookie(forkId()); render(); };
       return;
     }
     panel.innerHTML='<h3>Customize with AI</h3>'
@@ -91,15 +105,15 @@ const OVERLAY_SCRIPT = `<script>
       +'<h4>History</h4><div id="rx-log" class="muted">Loading...</div>'
       +'<div style="margin-top:14px;padding-top:12px;border-top:1px solid rgba(115,115,115,.25);text-align:right">'
       +'<a href="#" id="rx-reset" style="font-size:12px">Discard remix</a></div>';
-    document.getElementById('rx-gen').onclick=generate;
-    document.getElementById('rx-reset').onclick=function(e){ e.preventDefault(); reset(); };
+    $('rx-gen').onclick=generate;
+    $('rx-reset').onclick=function(e){ e.preventDefault(); reset(); };
     loadLog();
   }
 
   function loadLog(){
     fetch('/api/remix/state').then(function(r){return r.json();}).then(function(s){
       var log=(s&&s.versions)||[];
-      var el=document.getElementById('rx-log'); if(!el) return;
+      var el=$('rx-log'); if(!el) return;
       el.innerHTML = log.map(function(c){
         return '<div class="rx-commit"><div class="rx-msg">'+esc(c.message)+'</div>'
           +'<div class="rx-row"><code>'+esc(c.short)+'</code>'
@@ -118,8 +132,8 @@ const OVERLAY_SCRIPT = `<script>
     return '';
   }
   function generate(){
-    var p=(document.getElementById('rx-prompt').value||'').trim(); if(!p) return;
-    var gen=document.getElementById('rx-gen'); gen.disabled=true; setStatus('Starting...');
+    var p=($('rx-prompt').value||'').trim(); if(!p) return;
+    var gen=$('rx-gen'); gen.disabled=true; setStatus('Starting...');
     fetch('/api/remix/agent',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({prompt:p})})
       .then(function(resp){
         if(!resp.body){ throw new Error('no stream'); }
@@ -159,5 +173,5 @@ const OVERLAY_SCRIPT = `<script>
 </script>`;
 
 export function appOverlay(): string {
-  return OVERLAY_STYLE + OVERLAY_SCRIPT;
+  return OVERLAY_SCRIPT.replace("__RX_CSS__", JSON.stringify(WIDGET_CSS));
 }
