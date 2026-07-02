@@ -170,16 +170,20 @@ export class UserApp extends Think<Env> {
         const current = (await this.workspace.readFile(THEME_FILE).catch(() => "")) ?? "";
 
         send({ kind: "status", text: "Designing your theme..." });
-        const call = generateText({
-          model: this.getModel(),
-          system: AGENT_SYSTEM,
-          prompt: await this.buildPrompt(prompt, current),
-          maxOutputTokens: 3000,
-        });
+        const userPrompt = await this.buildPrompt(prompt, current);
+        // Reasoning models (gpt-oss) can spend most of the budget thinking and
+        // return an empty or truncated answer; give headroom and retry once.
+        const attempt = (extra: string) =>
+          generateText({
+            model: this.getModel(),
+            system: AGENT_SYSTEM,
+            prompt: userPrompt + extra,
+            maxOutputTokens: 8000,
+          }).then((r) => r.text);
         const timeout = new Promise<"timeout">((resolve) =>
           setTimeout(() => resolve("timeout"), 120_000),
         );
-        const raced = await Promise.race([call.then((r) => r.text), timeout]).catch((err) => {
+        const raced = await Promise.race([attempt(""), timeout]).catch((err) => {
           // A deploy resets live DOs mid-query; the retry lands on fresh code.
           throw /code was updated/i.test(String(err))
             ? new Error("The site was just redeployed — please try again.")
@@ -190,7 +194,17 @@ export class UserApp extends Think<Env> {
           return close();
         }
 
-        const css = extractCss(raced);
+        let css = extractCss(raced);
+        if (!css) {
+          send({ kind: "status", text: "One more pass..." });
+          const retry = await Promise.race([
+            attempt(
+              "\n\nIMPORTANT: reply with the CSS itself, nothing else. Start with @import or a selector.",
+            ),
+            timeout,
+          ]).catch(() => "");
+          css = retry === "timeout" ? null : extractCss(retry as string);
+        }
         if (!css || css === current.trim()) {
           send({ kind: "done", error: "That didn't produce a new style. Try rephrasing." });
           return close();
