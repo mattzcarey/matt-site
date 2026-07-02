@@ -288,46 +288,24 @@ async function cloudflareCallback(
     return redirectBack();
   }
 
-  // memberships.read is user-scoped and gates GET /memberships; the /accounts
-  // list needs account-settings.read, which this client deliberately lacks
-  // (bach: memberships_read = user.membership.list/read; account_settings_read
-  // = account.list). The consent screen scopes the grant to the account(s) the
-  // user picked, so the first membership with an account is the one to bill.
-  const memRes = await fetch(`${CF_API_BASE}/memberships`, {
+  // GET /accounts is gated by account-settings.read and, being account-scoped,
+  // returns exactly the account(s) the user consented — unlike the user-scoped
+  // /memberships, which lists every account they belong to.
+  const acctRes = await fetch(`${CF_API_BASE}/accounts`, {
     headers: { authorization: `Bearer ${tokens.access_token}` },
   }).catch(() => null);
-  const memberships = memRes?.ok
-    ? ((await memRes.json().catch(() => null)) as {
-        result?: Array<{ account?: { id?: string; name?: string } }>;
+  const accounts = acctRes?.ok
+    ? ((await acctRes.json().catch(() => null)) as {
+        result?: Array<{ id?: string; name?: string }>;
       } | null)
     : null;
-  const candidates = (memberships?.result ?? [])
-    .map((m) => m.account)
-    .filter((a): a is { id: string; name?: string } => Boolean(a?.id))
-    .slice(0, 15);
-  if (candidates.length === 0) {
-    console.error(
-      "cf oauth: membership discovery failed",
-      memRes?.status,
-      memberships?.result?.length ?? "(no body)",
-    );
-    return redirectBack();
-  }
-  // /memberships lists ALL the user's accounts, not just the consented one —
-  // the token only holds ai permissions on the account picked at consent, so
-  // probe each with an ai-gated call and keep the one that answers.
-  const probes = await Promise.all(
-    candidates.map(async (candidate) => {
-      const probe = await fetch(
-        `${CF_API_BASE}/accounts/${candidate.id}/ai/models/search?per_page=1`,
-        { headers: { authorization: `Bearer ${tokens.access_token}` } },
-      ).catch(() => null);
-      return probe?.ok ? candidate : null;
-    }),
-  );
-  const account = probes.find((candidate) => candidate !== null);
+  const account = accounts?.result?.at(0);
   if (!account?.id) {
-    console.error("cf oauth: no membership passed the ai probe", candidates.length);
+    console.error(
+      "cf oauth: account discovery failed",
+      acctRes?.status,
+      accounts?.result?.length ?? "(no body)",
+    );
     return redirectBack();
   }
 
