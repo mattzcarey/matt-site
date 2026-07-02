@@ -21,7 +21,6 @@
     "@astrojs/sitemap": "^3.4.1",
     "@astrojs/tailwind": "^6.0.2",
     "@cloudflare/think": "^0.10.0",
-    "@cloudflare/worker-bundler": "^0.2.1",
     "agents": "^0.17.0",
     "astro": "^5.11.0",
     "clsx": "^2.1.1",
