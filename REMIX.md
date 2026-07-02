@@ -42,21 +42,40 @@ forked visitor   -> same real HTML, with <style id="remix-theme"> injected
 
 ## Files
 
-- `src/worker.ts` — entry; exports `UserApp`, routes `/api/remix/*`, injects the
-  theme into HTML asset responses, passes everything else through.
-- `src/studio/router.ts` — the API handlers + fork-cookie parsing.
+- `src/worker.ts` — entry; exports `UserApp`, routes `/auth/*` + `/api/remix/*`,
+  injects the theme into HTML asset responses, passes everything else through.
+- `src/studio/router.ts` — the API handlers.
+- `src/studio/auth.ts` — BYO-model sign-in: Cloudflare OAuth (code + PKCE),
+  ChatGPT device-code flow, logout (see PLANS/byo-auth.md).
+- `src/studio/cookies.ts` — fork-cookie parsing + HMAC-signed cookie payloads.
+- `src/studio/models.ts` — per-tier model construction (Codex SSE aggregation,
+  Workers AI REST, free binding).
 - `src/studio/user-app.ts` — the DO: seed page snapshots, agent edit (SSE),
-  theme versions, revert, reset.
+  theme versions, revert, reset, auth tokens + single-flight refresh.
 - `src/studio/overlay.ts` — the site-styled floating widget.
 - `src/studio/config.ts` — models, agent system prompt, constants.
 
-## Model
+## Model tiers (bring your own account)
 
-`@cf/openai/gpt-oss-20b` on the Workers AI binding. A restyle is a **single
-model call** (request + current theme + real page markup → complete new
-stylesheet) — no tool loop, ~10-16s per turn, capped at 120s. The model lives
-in `src/studio/config.ts`: `@cf/` slugs use the AI binding; any other id goes
-to the OpenAI API via the `OPENAI_API_KEY` secret (`.env` for local dev).
+A restyle is a **single model call** (request + current theme + real page
+markup → complete new stylesheet) — no tool loop, capped at 120s. Three tiers:
+
+- **ChatGPT** — device-code sign-in against the public Codex client; restyles
+  run on `chatgpt.com/backend-api/codex` and spend the user's plan quota.
+  Experimental: the model slug + `OpenAI-Beta` header in `config.ts` are best
+  guesses pending a manual curl with a real token.
+- **Cloudflare** — auth-code + PKCE against `dash.cloudflare.com/oauth2/*`
+  (self-serve OAuth client; `CF_OAUTH_CLIENT_SECRET` wrangler secret);
+  restyles run over the Workers AI REST API billed to the user's account.
+- **Free** — the default: `@cf/openai/gpt-oss-20b` on the `env.AI` binding
+  (~10-16s per turn), capped at 10 restyles per fork per day. `@cf/` slugs use
+  the binding; any other id in `MODEL` goes to the OpenAI API via the
+  `OPENAI_API_KEY` secret (`.env` for local dev).
+
+Tokens live only in the fork's Durable Object (never in cookies or the
+browser); refresh is single-flight inside the DO because both providers rotate
+refresh tokens. Sign-in also sets an HttpOnly `remix_auth` grant cookie bound
+to the fork id, so a leaked localStorage id alone can't spend a user's tokens.
 
 ## Run / deploy
 
@@ -72,8 +91,13 @@ every page with `cache-control: private, no-store`, revert, reset.
 
 ## Notes / next
 
-- Every "Restyle this site" spends Workers AI tokens on the account.
+- Free-tier restyles spend Workers AI tokens on the account (capped per fork
+  per day); signed-in restyles bill the visitor.
 - The worker now fronts all asset requests (`run_worker_first: true`); unforked
   traffic is a single `env.ASSETS.fetch` passthrough.
-- Possible next: rate-limit generates per fork, share-a-theme links, let the
-  agent also write a scoped JS file (would weaken the content lock).
+- Cloudflare tier setup (dash, one-time): create the self-serve OAuth client,
+  set `CF_OAUTH_CLIENT_SECRET` via `wrangler secret`, verify the publisher DNS
+  TXT record, flip the client public.
+- Possible next: share-a-theme links, account picker for multi-account CF
+  grants, let the agent also write a scoped JS file (would weaken the content
+  lock).
