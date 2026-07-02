@@ -100,9 +100,13 @@ __RX_HOT__
   function render(){
     if(!forked()){
       panel.innerHTML='<h3>Remix this site</h3>'
-        +'<p class="muted">Restyle it with AI. Only you see your version.</p>'
-        +'<button class="act" id="rx-start">Start remixing</button>';
-      $('rx-start').onclick=function(){ setCookie(forkId()); render(); };
+        +'<p class="muted">Restyle it with AI. Only you see your version. Pick a model to start:</p>'
+        +'<button class="act" id="rx-start-gpt" style="margin-top:2px">Sign in with ChatGPT</button>'
+        +'<button class="act" id="rx-start-cf" style="margin-top:8px">Sign in with Cloudflare</button>'
+        +'<div style="text-align:center;margin-top:10px"><a href="#" id="rx-start-free" class="muted" style="font-size:12px">use free model</a></div>';
+      $('rx-start-gpt').onclick=function(){ setCookie(forkId()); render(); startChatgpt(); };
+      $('rx-start-cf').onclick=function(){ setCookie(forkId()); location.href='/oauth/cloudflare?return_to='+encodeURIComponent(location.pathname); };
+      $('rx-start-free').onclick=function(e){ e.preventDefault(); setCookie(forkId()); setFree(true); render(); };
       return;
     }
     panel.innerHTML='<h3>Customize with AI</h3>'
@@ -127,6 +131,7 @@ __RX_HOT__
 
   function renderAuth(a){
     var el=$('rx-auth'); if(!el) return;
+    if(devTimer) return; // a device-code sign-in owns the slot until it resolves
     stopDevicePoll();
     if(a&&a.provider){
       var line=a.provider==='chatgpt'?'Using ChatGPT ('+esc(a.label||'')+')':'Using Workers AI on '+esc(a.label||'');
