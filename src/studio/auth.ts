@@ -276,9 +276,19 @@ async function cloudflareCallback(
       code_verifier: tx.verifier,
     }),
   }).catch(() => null);
-  if (!tokenRes?.ok) return redirectBack();
+  if (!tokenRes?.ok) {
+    const body = tokenRes ? await tokenRes.text().catch(() => "") : "(fetch failed)";
+    console.error("cf oauth: exchange failed", tokenRes?.status, body.slice(0, 300));
+    return redirectBack();
+  }
   const tokens = (await tokenRes.json().catch(() => null)) as OAuthTokens | null;
-  if (!tokens?.access_token || !tokens.refresh_token) return redirectBack();
+  if (!tokens?.access_token || !tokens.refresh_token) {
+    console.error("cf oauth: token response incomplete", {
+      hasAccess: Boolean(tokens?.access_token),
+      hasRefresh: Boolean(tokens?.refresh_token),
+    });
+    return redirectBack();
+  }
 
   // The consent screen scopes the grant to the account(s) the user picked,
   // so this usually returns exactly one; auto-pick the first.
@@ -291,7 +301,14 @@ async function cloudflareCallback(
       } | null)
     : null;
   const account = accounts?.result?.at(0);
-  if (!account?.id) return redirectBack();
+  if (!account?.id) {
+    console.error(
+      "cf oauth: account discovery failed",
+      acctRes?.status,
+      accounts?.result?.length ?? "(no body)",
+    );
+    return redirectBack();
+  }
 
   const agent = await getAgentByName(env.USERAPP, forkId);
   await agent.setAuth({
