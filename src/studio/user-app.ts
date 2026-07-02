@@ -6,10 +6,11 @@
 //
 // Free tier: the content lock is architectural — write access is
 // tool-allowlisted to theme.css, and the single-call fallback has no tools at
-// all. The serving and storage layers are already multi-file so the full-edit
-// tier is a flag-flip.
+// all. The BYO tier (a valid auth record in this DO plus the grant cookie —
+// see PLANS/byo-auth.md) opens the write allowlist and runs on the visitor's
+// own ChatGPT or Cloudflare credential; tokens live only here, never in
+// cookies or the browser.
 
-import { createOpenAI } from "@ai-sdk/openai";
 import {
   Think,
   Workspace,
@@ -19,12 +20,14 @@ import {
   type TurnConfig,
 } from "@cloudflare/think";
 import { generateText, tool, type LanguageModel, type ToolSet } from "ai";
-import { createWorkersAI } from "workers-ai-provider";
 import { z } from "zod";
+import { type AuthRecord, refreshAuthRecord } from "./auth";
 import {
   AGENT_LOOP_SYSTEM,
   AGENT_SYSTEM,
+  FORK_JS_CONTRACT,
   FORK_JS_FILE,
+  FREE_RESTYLES_PER_DAY,
   MODEL_SUPPORTS_TOOLS,
   PAGES_DIR,
   ROOT,
@@ -36,6 +39,7 @@ import {
   isWriteAllowed,
   type ModelTier,
 } from "./config";
+import { modelFor } from "./models";
 import { normalizeRoute, type ServedPage } from "./serving";
 import {
   ORIGINAL_ID,
@@ -52,9 +56,21 @@ import {
   type VersionSummary,
 } from "./versions";
 
+export interface RemixAuthState {
+  provider: "chatgpt" | "cloudflare" | null;
+  label: string | null;
+  expired?: boolean;
+}
+
 export interface RemixState {
   versions: VersionSummary[];
+  auth: RemixAuthState;
   error?: string;
+}
+
+interface FreeUsage {
+  day: string;
+  count: number;
 }
 
 type Artifact = "css" | "html" | "js" | "file";
@@ -88,6 +104,11 @@ function extractCss(text: string): string | null {
   out = out.replace(/<\/style/gi, "");
   if (!out.includes("{") || !out.includes("}")) return null;
   return out;
+}
+
+function isAuthFailure(err: unknown): boolean {
+  const status = (err as { statusCode?: number } | null)?.statusCode;
+  return status === 401 || /\b401\b|unauthorized/i.test(String(err));
 }
 
 // Scout occasionally leaks a tool call as JSON text (finish "stop", nothing
@@ -147,25 +168,24 @@ export class UserApp extends Think<Env> {
 
   private readyPromise?: Promise<void>;
   private turn?: ActiveTurn;
+  private authRefreshPromise?: Promise<AuthRecord | null>;
+  // The turn-scoped credential: set at turn start when the fork holds a valid
+  // auth record AND the router verified the grant cookie; cleared when the
+  // turn ends or degrades to free. tier() keys off it.
+  private turnAuth: AuthRecord | null = null;
 
   // ── model seam ──────────────────────────────────────────────────────
-  // The BYO track (PLANS/byo-auth.md) replaces tier() with credential
-  // detection on the fork and extends getModelFor for the signed-in
-  // provider; everything else keys off these two.
   tier(): ModelTier {
-    return "free";
+    return this.turnAuth ? "byo" : "free";
   }
   getModelFor(tier: ModelTier, kind: "loop" | "fallback" = "loop"): LanguageModel {
-    const id = TIER_MODELS[tier][kind];
-    if (id.startsWith("@cf/")) {
-      return createWorkersAI({ binding: this.env.AI })(id);
-    }
-    return createOpenAI({ apiKey: this.env.OPENAI_API_KEY })(id);
+    return modelFor(this.env, tier === "byo" ? this.turnAuth : null, TIER_MODELS[tier][kind]);
   }
   override getModel() {
     return this.getModelFor(this.tier());
   }
   override getSystemPrompt() {
+    if (this.tier() === "byo") return `${AGENT_LOOP_SYSTEM}\n\n${FORK_JS_CONTRACT}`;
     return AGENT_LOOP_SYSTEM;
   }
   // Without explicit headroom the Workers AI default output cap (~256 tokens)
@@ -173,6 +193,88 @@ export class UserApp extends Think<Env> {
   // maxOutputTokens — only TurnConfig reaches streamText.
   override beforeTurn(): TurnConfig {
     return { maxOutputTokens: 8000 };
+  }
+  // Whether this tier's turn can drive the Think tool loop. The ChatGPT tier
+  // has native tool calling; every other tier keys off the provider-bridge
+  // probe results in config.
+  private supportsLoop(tier: ModelTier): boolean {
+    if (tier === "byo" && this.turnAuth?.provider === "chatgpt") return true;
+    return MODEL_SUPPORTS_TOOLS[TIER_MODELS[tier].loop] === true;
+  }
+
+  // ── auth (BYO model, see PLANS/byo-auth.md) ─────────────────────────
+  // Tokens live only here; the browser and every API response see just
+  // {provider, label}.
+
+  async setAuth(record: AuthRecord): Promise<void> {
+    await this.ctx.storage.put("auth", record);
+  }
+
+  // Deletes the record and returns it so the caller can best-effort revoke.
+  async clearAuth(): Promise<AuthRecord | null> {
+    const record = (await this.ctx.storage.get<AuthRecord>("auth")) ?? null;
+    await this.ctx.storage.delete("auth");
+    return record;
+  }
+
+  // Throttle for the ChatGPT device-code poll relay. The signed tx cookie is
+  // client-held (replayable), so the last-poll timestamp must live here.
+  async devicePollGate(minIntervalMs: number): Promise<boolean> {
+    const last = (await this.ctx.storage.get<number>("devicePollAt")) ?? 0;
+    const now = Date.now();
+    if (now - last < minIntervalMs) return false;
+    await this.ctx.storage.put("devicePollAt", now);
+    return true;
+  }
+
+  private async markAuthExpired(): Promise<void> {
+    const record = await this.ctx.storage.get<AuthRecord>("auth");
+    if (record) await this.ctx.storage.put("auth", { ...record, invalid: true });
+  }
+
+  // Returns a usable record (refreshed if near expiry) or null. Both
+  // providers rotate refresh tokens on use, so refresh is single-flight and
+  // the rotated pair is persisted before the promise resolves — concurrent
+  // restyles can't race a single-use refresh token into invalid_grant.
+  private async freshAuth(): Promise<AuthRecord | null> {
+    const record = await this.ctx.storage.get<AuthRecord>("auth");
+    if (!record || record.invalid) return null;
+    if (Date.now() < record.expiresAt - 60_000) return record;
+    if (!this.authRefreshPromise) {
+      this.authRefreshPromise = (async () => {
+        const current = await this.ctx.storage.get<AuthRecord>("auth");
+        if (!current || current.invalid) return null;
+        if (Date.now() < current.expiresAt - 60_000) return current;
+        const rotated = await refreshAuthRecord(this.env, current);
+        if (rotated === "denied") {
+          await this.ctx.storage.put("auth", { ...current, invalid: true });
+          return null;
+        }
+        if (!rotated) return null;
+        await this.ctx.storage.put("auth", rotated);
+        return rotated;
+      })();
+      this.authRefreshPromise.finally(() => {
+        this.authRefreshPromise = undefined;
+      });
+    }
+    return this.authRefreshPromise;
+  }
+
+  private async authState(): Promise<RemixAuthState> {
+    const record = await this.ctx.storage.get<AuthRecord>("auth");
+    if (!record) return { provider: null, label: null };
+    return { provider: record.provider, label: record.label, expired: record.invalid === true };
+  }
+
+  // The free tier bills Matt; cap restyles per fork per day.
+  private async consumeFreeRestyle(): Promise<boolean> {
+    const today = new Date().toISOString().slice(0, 10);
+    const usage = await this.ctx.storage.get<FreeUsage>("freeUsage");
+    const count = usage?.day === today ? usage.count : 0;
+    if (count >= FREE_RESTYLES_PER_DAY) return false;
+    await this.ctx.storage.put("freeUsage", { day: today, count: count + 1 });
+    return true;
   }
 
   // ── tools ───────────────────────────────────────────────────────────
@@ -329,11 +431,13 @@ export class UserApp extends Think<Env> {
   // ── RPC: state ──────────────────────────────────────────────────────
   async remixState(): Promise<RemixState> {
     await this.ensureReady();
-    return { versions: await listVersions(this.ctx.storage) };
+    return { versions: await listVersions(this.ctx.storage), auth: await this.authState() };
   }
 
   // ── RPC: agentic restyle (SSE stream) ───────────────────────────────
-  streamAgentEdit(prompt: string): ReadableStream {
+  // allowPaid: the router verified the HttpOnly remix_auth grant cookie, so
+  // this caller may spend the signed-in user's tokens.
+  streamAgentEdit(prompt: string, allowPaid = false): ReadableStream {
     const enc = new TextEncoder();
     let controller: ReadableStreamDefaultController<Uint8Array>;
     const stream = new ReadableStream<Uint8Array>({
@@ -367,6 +471,22 @@ export class UserApp extends Think<Env> {
     };
     if (!busy) this.turn = turn;
 
+    const providerName = (record: AuthRecord) =>
+      record.provider === "chatgpt" ? "ChatGPT" : "Cloudflare";
+
+    // One tier's worth of restyling: the tool loop when the tier supports it,
+    // the single-call CSS path otherwise (or when the loop produced nothing).
+    const runTier = async (tier: ModelTier, signal: AbortSignal) => {
+      let looped = false;
+      if (this.supportsLoop(tier)) {
+        looped = await this.runToolLoop(prompt, turn, tier, signal);
+      }
+      if (!looped && !turn.changed.has(THEME_FILE)) {
+        send({ kind: "status", text: "Designing your theme..." });
+        await this.runSingleCall(prompt, turn, tier, signal);
+      }
+    };
+
     const run = async () => {
       if (busy) {
         send({ kind: "done", error: "A restyle is already running — wait for it to finish." });
@@ -376,18 +496,49 @@ export class UserApp extends Think<Env> {
       const watchdog = setTimeout(() => abort.abort(), 120_000);
       try {
         await this.ensureReady();
+
+        // Resolve the tier. A signed-in fork whose refresh is expired/denied
+        // degrades to the free tier with a status message — the turn still
+        // runs rather than failing.
+        this.turnAuth = null;
+        const record = await this.ctx.storage.get<AuthRecord>("auth");
+        if (record && allowPaid) {
+          this.turnAuth = await this.freshAuth();
+          if (!this.turnAuth) {
+            send({
+              kind: "status",
+              text: `Your ${providerName(record)} session expired — continuing with the free model. Sign in again to restore it.`,
+            });
+          }
+        }
+        if (!this.turnAuth && !(await this.consumeFreeRestyle())) {
+          send({
+            kind: "done",
+            error:
+              "Free restyles are used up for today — sign in with ChatGPT or Cloudflare, or come back tomorrow.",
+          });
+          return close();
+        }
+
         const baseId = await currentVersionId(this.ctx.storage);
         turn.live = true;
         send({ kind: "status", text: "Reading the site..." });
 
-        const tier = this.tier();
-        let looped = false;
-        if (MODEL_SUPPORTS_TOOLS[TIER_MODELS[tier].loop]) {
-          looped = await this.runToolLoop(prompt, turn, tier, abort.signal);
-        }
-        if (!looped && !turn.changed.has(THEME_FILE)) {
-          send({ kind: "status", text: "Designing your theme..." });
-          await this.runSingleCall(prompt, turn, tier, abort.signal);
+        try {
+          await runTier(this.tier(), abort.signal);
+        } catch (err) {
+          // A revoked/expired credential mid-turn degrades to the free tier
+          // with a status message rather than failing the turn.
+          const failedAuth = this.turnAuth;
+          if (!failedAuth || abort.signal.aborted || !isAuthFailure(err)) throw err;
+          await this.markAuthExpired();
+          this.turnAuth = null;
+          if (!(await this.consumeFreeRestyle())) throw err;
+          send({
+            kind: "status",
+            text: `Your ${providerName(failedAuth)} session expired — continuing with the free model. Sign in again to restore it.`,
+          });
+          await runTier("free", abort.signal);
         }
         await turn.queue;
 
@@ -423,16 +574,27 @@ export class UserApp extends Think<Env> {
         const rolledBack = await rollbackToCurrent(this.ctx.storage, this.workspace).catch(
           () => false,
         );
-        const message = abort.signal.aborted
-          ? "That took too long — please try again."
-          : // A deploy resets live DOs mid-query; the retry lands on fresh code.
-            /code was updated/i.test(String(err))
-            ? "The site was just redeployed — please try again."
-            : String(err instanceof Error ? err.message : err).slice(0, 200);
-        send({ kind: "done", error: message, rolledBack });
+        if (this.turnAuth && isAuthFailure(err) && !abort.signal.aborted) {
+          await this.markAuthExpired();
+          send({
+            kind: "done",
+            error: `Your ${providerName(this.turnAuth)} session expired — sign in again.`,
+            auth: "expired",
+            rolledBack,
+          });
+        } else {
+          const message = abort.signal.aborted
+            ? "That took too long — please try again."
+            : // A deploy resets live DOs mid-query; the retry lands on fresh code.
+              /code was updated/i.test(String(err))
+              ? "The site was just redeployed — please try again."
+              : String(err instanceof Error ? err.message : err).slice(0, 200);
+          send({ kind: "done", error: message, rolledBack });
+        }
       } finally {
         clearTimeout(watchdog);
         this.turn = undefined;
+        this.turnAuth = null;
         close();
       }
     };
@@ -483,6 +645,9 @@ export class UserApp extends Think<Env> {
     const chatConfig = { signal };
     await this.chat(this.buildLoopPrompt(prompt), callback, chatConfig);
     if (signal.aborted) throw new Error("timeout");
+    // Surface a credential failure so the caller can degrade the tier
+    // instead of burning the fallback call on a dead token.
+    if (chatError && tier === "byo" && isAuthFailure(chatError)) throw new Error(chatError);
     if (turn.changed.has(THEME_FILE)) return true;
     if (chatError) return false; // degrade to the single-call path
     if (await salvage()) return true;
@@ -581,11 +746,12 @@ export class UserApp extends Think<Env> {
     if (this.turn) {
       return {
         versions: await listVersions(this.ctx.storage),
+        auth: await this.authState(),
         error: "A restyle is running — wait for it to finish before reverting.",
       };
     }
     const ok = await materializeVersion(this.ctx.storage, this.workspace, id);
-    if (!ok) return { versions: [], error: "Version not found." };
+    if (!ok) return { versions: [], auth: await this.authState(), error: "Version not found." };
     return this.remixState();
   }
 
@@ -600,7 +766,7 @@ export class UserApp extends Think<Env> {
     await this.workspace.rm(ROOT, { recursive: true }).catch(() => undefined);
     await this.clearMessages().catch(() => undefined);
     await wipeVersions(this.ctx.storage);
-    for (const key of ["versions", "seedVersion"]) {
+    for (const key of ["versions", "seedVersion", "auth", "freeUsage", "devicePollAt"]) {
       await this.ctx.storage.delete(key);
     }
     this.readyPromise = undefined;

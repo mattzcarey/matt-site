@@ -7,11 +7,13 @@
 //                            workspace shadows agent-edited paths; ONE
 //                            serve-time invariants pass (theme injection,
 //                            widget survival, noindex, href rebase)
+//   - /auth/* and /oauth/cloudflare[/callback] -> BYO-model sign-in
 //   - /api/remix/*        -> the studio API (agent SSE, previews, state,
 //                            revert, reset)
 //   - /remix-assets/*     -> files served from the fork's workspace
 
 import { getAgentByName } from "agents";
+import { handleAuth } from "./studio/auth";
 import { forkIdFrom, handleRemixAsset, handleStudioApi } from "./studio/router";
 import { applyInvariants } from "./studio/serving";
 
@@ -28,6 +30,9 @@ export default {
     if (url.pathname.startsWith("/remix-assets/")) {
       return handleRemixAsset(request, env);
     }
+
+    const auth = await handleAuth(request, env);
+    if (auth) return auth;
 
     const api = await handleStudioApi(request, env);
     if (api) return api;

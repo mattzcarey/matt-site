@@ -7,8 +7,9 @@
 // theme CSS (which targets the page) cannot restyle it.
 //
 // The whole flow happens in place on whatever page you're on: start a remix,
-// describe a change, and watch the page restyle live as the agent writes —
-// hot reload, no page load (hotreload.ts is spliced into this IIFE).
+// pick a model (sign in with ChatGPT / Cloudflare, or the free one), describe
+// a change, and watch the page restyle live as the agent writes — hot reload,
+// no page load (hotreload.ts is spliced into this IIFE).
 
 import { HOTRELOAD_JS } from "./hotreload";
 
@@ -92,7 +93,7 @@ __RX_HOT__
   document.body.appendChild(host);
   function $(id){ return root.getElementById(id); }
   var open=false;
-  fab.onclick=function(){ open=!open; panel.style.display=open?'block':'none'; if(open) render(); };
+  fab.onclick=function(){ open=!open; panel.style.display=open?'block':'none'; if(open) render(); else stopDevicePoll(); };
   function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
   function setStatus(t,err){ var e=$('rx-status'); if(e){ e.textContent=t||''; e.style.color=err?'#dc2626':''; } }
 
@@ -105,6 +106,7 @@ __RX_HOT__
       return;
     }
     panel.innerHTML='<h3>Customize with AI</h3>'
+      +'<div id="rx-auth" style="margin:6px 0 10px"></div>'
       +'<textarea id="rx-prompt" placeholder="Describe a look... e.g. retro pixel terminal, brutalist newspaper, soft pastel zine"></textarea>'
       +'<button class="act" id="rx-gen">Restyle this site</button>'
       +'<div id="rx-status" class="muted" style="margin-top:8px"></div>'
@@ -116,8 +118,67 @@ __RX_HOT__
     loadLog();
   }
 
+  // ── model auth (sign in with ChatGPT / Cloudflare, or the free model) ──
+  var FREE_KEY='remix_free';
+  var devTimer=null;
+  function stopDevicePoll(){ if(devTimer){ clearInterval(devTimer); devTimer=null; } }
+  function freeChosen(){ try{ return localStorage.getItem(FREE_KEY)==='1'; }catch(e){ return false; } }
+  function setFree(v){ try{ if(v){ localStorage.setItem(FREE_KEY,'1'); } else { localStorage.removeItem(FREE_KEY); } }catch(e){} }
+
+  function renderAuth(a){
+    var el=$('rx-auth'); if(!el) return;
+    stopDevicePoll();
+    if(a&&a.provider){
+      var line=a.provider==='chatgpt'?'Using ChatGPT ('+esc(a.label||'')+')':'Using Workers AI on '+esc(a.label||'');
+      if(a.expired){ line=(a.provider==='chatgpt'?'ChatGPT':'Cloudflare')+' session expired'; }
+      el.innerHTML='<span class="muted" style="font-size:13px">'+line+'</span> &middot; <a href="#" id="rx-signout" style="font-size:12px">sign out</a>';
+      $('rx-signout').onclick=function(e){ e.preventDefault(); signOut(); };
+      return;
+    }
+    if(freeChosen()){
+      el.innerHTML='<span class="muted" style="font-size:13px">Using the free model.</span> <a href="#" id="rx-signin" style="font-size:12px">sign in</a>';
+      $('rx-signin').onclick=function(e){ e.preventDefault(); setFree(false); renderAuth(null); };
+      return;
+    }
+    el.innerHTML='<button class="act" id="rx-auth-gpt" style="margin-top:2px">Sign in with ChatGPT</button>'
+      +'<button class="act" id="rx-auth-cf" style="margin-top:8px">Sign in with Cloudflare</button>'
+      +'<div style="text-align:center;margin-top:8px"><a href="#" id="rx-auth-free" class="muted" style="font-size:12px">use free model</a></div>';
+    $('rx-auth-gpt').onclick=startChatgpt;
+    $('rx-auth-cf').onclick=function(){ location.href='/oauth/cloudflare?return_to='+encodeURIComponent(location.pathname); };
+    $('rx-auth-free').onclick=function(e){ e.preventDefault(); setFree(true); renderAuth(null); var t=$('rx-prompt'); if(t) t.focus(); };
+  }
+
+  function startChatgpt(){
+    var el=$('rx-auth'); if(!el) return;
+    el.innerHTML='<span class="muted">Starting ChatGPT sign-in...</span>';
+    fetch('/auth/chatgpt',{method:'POST'}).then(function(r){return r.json();}).then(function(d){
+      if(!d||!d.user_code){ el.innerHTML='<span class="muted" style="color:#dc2626">'+esc((d&&d.error)||'Could not start sign-in.')+'</span>'; return; }
+      el.innerHTML='<div class="muted" style="font-size:13px">Enter this code at <a href="'+d.verify_url+'" target="_blank" rel="noopener">auth.openai.com/codex/device</a>:</div>'
+        +'<div style="font-size:22px;font-weight:700;font-family:ui-monospace,monospace;letter-spacing:.08em;margin:6px 0">'+esc(d.user_code)+'</div>'
+        +'<div class="muted" style="font-size:12px">Requires "device code login" enabled in ChatGPT Settings &rarr; Security.</div>'
+        +'<div class="muted" id="rx-dev-status" style="font-size:12px;margin-top:6px">Waiting for approval...</div>';
+      var every=Math.max(3,Number(d.interval)||5)*1000;
+      devTimer=setInterval(function(){
+        fetch('/auth/chatgpt/callback',{method:'POST'}).then(function(r){
+          return r.json().then(function(j){ return { status:r.status, body:j }; });
+        }).then(function(res){
+          if(res.body&&res.body.ok){ stopDevicePoll(); setFree(false); loadLog(); return; }
+          if(res.status===429||(res.body&&res.body.pending)) return;
+          stopDevicePoll();
+          var ds=$('rx-dev-status');
+          if(ds){ ds.textContent=(res.body&&res.body.error)||'Sign-in failed - try again.'; ds.style.color='#dc2626'; }
+        }).catch(function(){});
+      },every);
+    }).catch(function(){ el.innerHTML='<span class="muted" style="color:#dc2626">Could not start sign-in.</span>'; });
+  }
+
+  function signOut(){
+    fetch('/auth/logout',{method:'POST'}).then(function(){ setFree(false); loadLog(); }).catch(function(){});
+  }
+
   function loadLog(){
     fetch('/api/remix/state').then(function(r){return r.json();}).then(function(s){
+      renderAuth((s&&s.auth)||null);
       var log=(s&&s.versions)||[];
       var el=$('rx-log'); if(!el) return;
       el.innerHTML = log.map(function(c){
@@ -160,7 +221,7 @@ __RX_HOT__
               else if(msg.kind==='css'){ setStatus('restyling theme.css...'); }
             }
             else if(msg.kind==='done'){
-              if(msg.error){ rxFinishTurn(false); setStatus(msg.error,true); }
+              if(msg.error){ rxFinishTurn(false); setStatus(msg.error,true); if(msg.auth==='expired'){ loadLog(); } }
               else { rxFinishTurn(true); setStatus('Applied — this is your remix now.'); $('rx-prompt').value=''; loadLog(); }
               gen.disabled=false;
             }
@@ -181,7 +242,7 @@ __RX_HOT__
     setStatus('Resetting...');
     fetch('/api/remix/reset',{method:'POST'}).then(function(r){return r.json();}).then(function(s){
       if(s&&s.error){ setStatus(s.error,true); return; }
-      try{localStorage.removeItem(COOKIE);}catch(e){} clearCookie(); location.reload();
+      try{localStorage.removeItem(COOKIE);localStorage.removeItem(FREE_KEY);}catch(e){} clearCookie(); location.reload();
     }).catch(function(e){ setStatus(String(e),true); });
   }
 })();

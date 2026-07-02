@@ -1,8 +1,8 @@
 // Shared constants for the remix studio.
 
 // Model tiers. "free" is the anonymous default; "byo" is the signed-in
-// bring-your-own-credential tier (wired separately — see getModelFor in
-// user-app.ts, the integration seam it flips).
+// bring-your-own-credential tier (a valid auth record in the fork DO plus the
+// remix_auth grant cookie — see tier() in user-app.ts).
 export type ModelTier = "free" | "byo";
 
 // Models. "@cf/" slugs run on the Workers AI binding; anything else goes to
@@ -23,8 +23,10 @@ export const MODEL_SUPPORTS_TOOLS: Record<string, boolean> = {
   [FALLBACK_MODEL]: false,
 };
 
-// Per-tier model choice. The BYO tier swaps this entry for the signed-in
-// credential's model (gpt-5.5 or the user's own CF account models).
+// Per-tier model choice. On the BYO tier these ids ride the signed-in
+// credential instead of Matt's binding: a Cloudflare grant runs them over the
+// Workers AI REST API billed to the user; a ChatGPT grant swaps both for
+// CHATGPT_MODEL on the Codex backend (see models.ts).
 export const TIER_MODELS: Record<ModelTier, { loop: string; fallback: string }> = {
   free: { loop: LOOP_MODEL, fallback: FALLBACK_MODEL },
   byo: { loop: LOOP_MODEL, fallback: FALLBACK_MODEL },
@@ -33,6 +35,37 @@ export const TIER_MODELS: Record<ModelTier, { loop: string; fallback: string }> 
 // Cookie mirroring the localStorage fork id so the worker can route a visitor
 // to their own ephemeral fork Durable Object.
 export const FORK_COOKIE = "remix_fork";
+
+// ── BYO-model auth (see PLANS/byo-auth.md) ──────────────────────────────
+// Paid-tier grant cookie: HMAC(forkId), HttpOnly. Set on sign-in so a leaked
+// localStorage fork id alone cannot spend a signed-in user's tokens.
+export const AUTH_COOKIE = "remix_auth";
+
+// Cloudflare self-serve OAuth client (public client id, safe to commit).
+export const CF_OAUTH_CLIENT_ID = "475794bcb17db3c3e4bef4a2070923e8";
+export const CF_OAUTH_AUTHORIZE_URL = "https://dash.cloudflare.com/oauth2/auth";
+export const CF_OAUTH_TOKEN_URL = "https://dash.cloudflare.com/oauth2/token";
+export const CF_OAUTH_REVOKE_URL = "https://dash.cloudflare.com/oauth2/revoke";
+// Must byte-match the redirect registered on the OAuth client, in both the
+// authorize URL and the token-exchange body.
+export const CF_OAUTH_REDIRECT_URI = "https://mattzcarey.com/oauth/cloudflare/callback";
+// Dot-form self-serve scope ids; offline_access rides the refresh_token grant.
+export const CF_OAUTH_SCOPES = "ai.read ai.write user-details.read memberships.read offline_access";
+export const CF_API_BASE = "https://api.cloudflare.com/client/v4";
+
+// "Sign in with ChatGPT": device-code flow against the public Codex client.
+export const CODEX_CLIENT_ID = "app_EMoamEEZ73f0CkXaXp7hrann";
+export const OPENAI_ISSUER = "https://auth.openai.com";
+export const CHATGPT_VERIFY_URL = `${OPENAI_ISSUER}/codex/device`;
+export const CHATGPT_CODEX_BASE_URL = "https://chatgpt.com/backend-api/codex";
+// UNVERIFIED best guesses pending a manual curl with a real ChatGPT token
+// (PLANS/byo-auth.md §7.1/§7.3): the slug catalog is server-driven and the
+// OpenAI-Beta value for the plain SSE POST is undocumented.
+export const CHATGPT_MODEL = "gpt-5.5";
+export const CHATGPT_OPENAI_BETA = "responses=experimental";
+
+// The free tier is the only Matt-billed tier; cap restyles per fork per day.
+export const FREE_RESTYLES_PER_DAY = 10;
 
 // Workspace layout inside each fork's Durable Object. Page snapshots mirror
 // their routes (/site/pages/work/index.html serves /work/) so serving,
@@ -133,7 +166,7 @@ export const AGENT_LOOP_SYSTEM = [
 
 // Prompt section for the BYO (full-edit) tier: the browser-module contract
 // fork.js must follow so hot reload can dispose and re-import it. Unused on
-// the free tier; the BYO wiring appends it to the loop system prompt.
+// the free tier; getSystemPrompt appends it to the loop system prompt.
 export const FORK_JS_CONTRACT = [
   `${FORK_JS_FILE} is a single plain browser ES module (no imports, or`,
   "https://esm.sh imports only). It must be idempotent and set",
