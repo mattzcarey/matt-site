@@ -16,6 +16,7 @@ import {
   type StreamCallback,
   type ToolCallContext,
   type ToolCallDecision,
+  type TurnConfig,
 } from "@cloudflare/think";
 import { generateText, tool, type LanguageModel, type ToolSet } from "ai";
 import { createWorkersAI } from "workers-ai-provider";
@@ -40,6 +41,7 @@ import {
   ORIGINAL_ID,
   commitVersion,
   currentManifest,
+  currentVersionId,
   getManifest,
   listVersions,
   manifestFile,
@@ -165,6 +167,12 @@ export class UserApp extends Think<Env> {
   }
   override getSystemPrompt() {
     return AGENT_LOOP_SYSTEM;
+  }
+  // Without explicit headroom the Workers AI default output cap (~256 tokens)
+  // truncates the write tool's args mid-stylesheet. chat() options don't carry
+  // maxOutputTokens — only TurnConfig reaches streamText.
+  override beforeTurn(): TurnConfig {
+    return { maxOutputTokens: 8000 };
   }
 
   // ── tools ───────────────────────────────────────────────────────────
@@ -368,6 +376,7 @@ export class UserApp extends Think<Env> {
       const watchdog = setTimeout(() => abort.abort(), 120_000);
       try {
         await this.ensureReady();
+        const baseId = await currentVersionId(this.ctx.storage);
         turn.live = true;
         send({ kind: "status", text: "Reading the site..." });
 
@@ -383,10 +392,17 @@ export class UserApp extends Think<Env> {
         await turn.queue;
 
         this.turn = undefined;
-        const manifest =
+        let manifest =
           turn.changed.size > 0
             ? await commitVersion(this.ctx.storage, this.workspace, prompt.slice(0, 72))
             : null;
+        if (!manifest) {
+          // The model may have already committed via the commit tool, in which
+          // case the workspace matches current and commitVersion returns null —
+          // still a successful turn.
+          const committed = await currentManifest(this.ctx.storage);
+          if (committed && committed.id !== baseId) manifest = committed;
+        }
         if (manifest) {
           send({
             kind: "done",
@@ -455,14 +471,16 @@ export class UserApp extends Think<Env> {
     };
     const salvage = async (): Promise<boolean> => {
       const call = salvageToolWrite(leakedText);
-      if (!call || !isWriteAllowed(call.path, tier)) return false;
-      await this.workspace.writeFile(THEME_FILE, call.content);
+      if (!call) return false;
+      const path = call.path.startsWith("/") ? call.path : `/${call.path}`;
+      if (!isWriteAllowed(path, tier)) return false;
+      await this.workspace.writeFile(path, call.content);
       return true;
     };
 
-    // Without explicit headroom the Workers AI default output cap (~256
-    // tokens) truncates the write tool's args mid-stylesheet.
-    const chatConfig = { signal, maxOutputTokens: 8000 };
+    // Output-token headroom rides beforeTurn() — ChatOptions has no
+    // maxOutputTokens field.
+    const chatConfig = { signal };
     await this.chat(this.buildLoopPrompt(prompt), callback, chatConfig);
     if (signal.aborted) throw new Error("timeout");
     if (turn.changed.has(THEME_FILE)) return true;
@@ -556,8 +574,16 @@ export class UserApp extends Think<Env> {
   }
 
   // ── RPC: revert ─────────────────────────────────────────────────────
+  // Guarded against active turns: a mid-turn materialize would leak writes
+  // into the running turn's stream and get clobbered by its commit.
   async revertVersion(id: string): Promise<RemixState> {
     await this.ensureReady();
+    if (this.turn) {
+      return {
+        versions: await listVersions(this.ctx.storage),
+        error: "A restyle is running — wait for it to finish before reverting.",
+      };
+    }
     const ok = await materializeVersion(this.ctx.storage, this.workspace, id);
     if (!ok) return { versions: [], error: "Version not found." };
     return this.remixState();
@@ -567,7 +593,10 @@ export class UserApp extends Think<Env> {
   // Deletes only this studio's state. storage.deleteAll() would drop the
   // Think/Workspace SQL tables under the live instance (every call after a
   // reset then fails with "no such table" until the DO is evicted).
-  async resetSelf(): Promise<void> {
+  async resetSelf(): Promise<{ ok: boolean; error?: string }> {
+    if (this.turn) {
+      return { ok: false, error: "A restyle is running — wait for it to finish." };
+    }
     await this.workspace.rm(ROOT, { recursive: true }).catch(() => undefined);
     await this.clearMessages().catch(() => undefined);
     await wipeVersions(this.ctx.storage);
@@ -575,5 +604,6 @@ export class UserApp extends Think<Env> {
       await this.ctx.storage.delete(key);
     }
     this.readyPromise = undefined;
+    return { ok: true };
   }
 }

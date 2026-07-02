@@ -179,8 +179,10 @@ __RX_HOT__
   function reset(){
     if(!confirm('Discard your remix and go back to the original?')) return;
     setStatus('Resetting...');
-    fetch('/api/remix/reset',{method:'POST'}).then(function(){ try{localStorage.removeItem(COOKIE);}catch(e){} clearCookie(); location.reload(); })
-      .catch(function(e){ setStatus(String(e),true); });
+    fetch('/api/remix/reset',{method:'POST'}).then(function(r){return r.json();}).then(function(s){
+      if(s&&s.error){ setStatus(s.error,true); return; }
+      try{localStorage.removeItem(COOKIE);}catch(e){} clearCookie(); location.reload();
+    }).catch(function(e){ setStatus(String(e),true); });
   }
 })();
 </script>`;

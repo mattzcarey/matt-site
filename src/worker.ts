@@ -32,8 +32,20 @@ export default {
     const api = await handleStudioApi(request, env);
     if (api) return api;
 
-    const assetRes = await env.ASSETS.fetch(request);
     const forkId = forkIdFrom(request);
+    // Forked visitors must never get a 304: a conditional revalidation of a
+    // page they cached before forking would bypass the whole remix pipeline
+    // and resurrect the unremixed body from their browser cache.
+    let assetReq = request;
+    if (
+      forkId &&
+      (request.headers.has("if-none-match") || request.headers.has("if-modified-since"))
+    ) {
+      assetReq = new Request(request);
+      assetReq.headers.delete("if-none-match");
+      assetReq.headers.delete("if-modified-since");
+    }
+    const assetRes = await env.ASSETS.fetch(assetReq);
     if (!forkId) return assetRes;
     const contentType = assetRes.headers.get("content-type") ?? "";
     if (!contentType.includes("text/html")) return assetRes;

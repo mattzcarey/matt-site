@@ -83,6 +83,10 @@ export async function currentManifest(
   return getManifest(storage, currentId);
 }
 
+export async function currentVersionId(storage: DurableObjectStorage): Promise<string | undefined> {
+  return storage.get<string>(CURRENT_KEY);
+}
+
 export async function readBlob(
   storage: DurableObjectStorage,
   hash: string,

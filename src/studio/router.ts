@@ -89,8 +89,7 @@ export async function handleStudioApi(request: Request, env: Env): Promise<Respo
     });
   }
   if (path === "/api/remix/reset" && request.method === "POST") {
-    await agent.resetSelf();
-    return Response.json({ ok: true });
+    return Response.json(await agent.resetSelf());
   }
   const body = (await request.json().catch(() => ({}))) as {
     prompt?: string;
