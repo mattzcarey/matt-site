@@ -235,14 +235,23 @@ __RX_HOT__
           for(var i=0;i<blocks.length;i++){
             var line=blocks[i].replace(/^data: /,''); if(!line) continue;
             var msg; try{ msg=JSON.parse(line); }catch(e){ continue; }
-            if(msg.kind==='status'){ setStatus(msg.text); }
-            else if(msg.kind==='event'){ var c; try{c=JSON.parse(msg.chunk);}catch(e){continue;} var a=activity(c); if(a) setStatus(a); }
+            if(msg.kind==='status'){ setStatus(msg.text); console.log('[remix]',msg.text); }
+            else if(msg.kind==='event'){
+              var c; try{c=JSON.parse(msg.chunk);}catch(e){continue;}
+              if(c.type==='tool-input-available'){ console.log('[remix] tool call:',c.toolName,c.input); }
+              else if(c.type==='tool-output-available'){ console.log('[remix] tool result:',c.output); }
+              else if(c.type==='tool-output-error'){ console.log('[remix] tool error:',c.errorText); }
+              else { console.debug('[remix:event]',c.type,c); }
+              var a=activity(c); if(a) setStatus(a);
+            }
             else if(msg.kind==='css'||msg.kind==='page'||msg.kind==='file'){
+              console.log('[remix]',msg.kind,msg.path||'',msg.change||'',msg.kind==='css'?(String(msg.css||'').length+' bytes'):'');
               rxHandleHot(msg);
               if(msg.kind==='file'){ setStatus((msg.change==='delete'?'deleting ':'writing ')+String(msg.path||'').replace('/site/','')+'...'); }
               else if(msg.kind==='css'){ setStatus('restyling theme.css...'); }
             }
             else if(msg.kind==='done'){
+              console.log('[remix] done',msg.error?('error: '+msg.error):('ok, version '+((msg.version&&msg.version.short)||'')));
               if(msg.error){ rxFinishTurn(false); setStatus(msg.error,true); if(msg.auth==='expired'){ loadLog(); } }
               else { rxFinishTurn(true); setStatus('Applied — this is your remix now.'); $('rx-prompt').value=''; loadLog(); }
               gen.disabled=false;
