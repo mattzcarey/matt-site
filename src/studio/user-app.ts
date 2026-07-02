@@ -24,6 +24,7 @@ import { z } from "zod";
 import { type AuthRecord, refreshAuthRecord } from "./auth";
 import {
   AGENT_LOOP_SYSTEM,
+  AGENT_LOOP_SYSTEM_BYO,
   AGENT_SYSTEM,
   FORK_JS_CONTRACT,
   FORK_JS_FILE,
@@ -185,7 +186,7 @@ export class UserApp extends Think<Env> {
     return this.getModelFor(this.tier());
   }
   override getSystemPrompt() {
-    if (this.tier() === "byo") return `${AGENT_LOOP_SYSTEM}\n\n${FORK_JS_CONTRACT}`;
+    if (this.tier() === "byo") return `${AGENT_LOOP_SYSTEM_BYO}\n\n${FORK_JS_CONTRACT}`;
     return AGENT_LOOP_SYSTEM;
   }
   // Without explicit headroom the Workers AI default output cap (~256 tokens)
@@ -200,6 +201,13 @@ export class UserApp extends Think<Env> {
   private supportsLoop(tier: ModelTier): boolean {
     if (tier === "byo" && this.turnAuth?.provider === "chatgpt") return true;
     return MODEL_SUPPORTS_TOOLS[TIER_MODELS[tier].loop] === true;
+  }
+  // Whether a turn produced work: the free tier only ever writes the theme
+  // file; the byo tier's write allowlist is the whole workspace, so any
+  // changed file counts — a pages/fork.js-only turn is a success, not a
+  // text-leak to retry or a reason to burn the single-call fallback.
+  private turnProduced(turn: ActiveTurn, tier: ModelTier): boolean {
+    return tier === "byo" ? turn.changed.size > 0 : turn.changed.has(THEME_FILE);
   }
 
   // ── auth (BYO model, see PLANS/byo-auth.md) ─────────────────────────
@@ -481,7 +489,7 @@ export class UserApp extends Think<Env> {
       if (this.supportsLoop(tier)) {
         looped = await this.runToolLoop(prompt, turn, tier, signal);
       }
-      if (!looped && !turn.changed.has(THEME_FILE)) {
+      if (!looped && !this.turnProduced(turn, tier)) {
         send({ kind: "status", text: "Designing your theme..." });
         await this.runSingleCall(prompt, turn, tier, signal);
       }
@@ -532,8 +540,18 @@ export class UserApp extends Think<Env> {
           const failedAuth = this.turnAuth;
           if (!failedAuth || abort.signal.aborted || !isAuthFailure(err)) throw err;
           await this.markAuthExpired();
-          this.turnAuth = null;
+          // Keep turnAuth set through the cap check: if there is no free
+          // quota to degrade onto, the outer catch still reports the expiry.
           if (!(await this.consumeFreeRestyle())) throw err;
+          this.turnAuth = null;
+          // The byo attempt may have left partial page/JS edits the CSS-only
+          // free tier cannot repair; restore the committed state first. The
+          // turn stays live so the rollback's change events repaint the tab,
+          // but rollback writes are not production — clear them.
+          if (turn.changed.size > 0) {
+            await rollbackToCurrent(this.ctx.storage, this.workspace);
+            turn.changed.clear();
+          }
           send({
             kind: "status",
             text: `Your ${providerName(failedAuth)} session expired — continuing with the free model. Sign in again to restore it.`,
@@ -603,8 +621,8 @@ export class UserApp extends Think<Env> {
   }
 
   // The Think tool loop: workspace tools + the write allowlist, streaming
-  // UI chunks through to the SSE consumer. Returns true once the theme file
-  // was written (directly or via the leak salvage).
+  // UI chunks through to the SSE consumer. Returns true once the turn
+  // produced work (see turnProduced), directly or via the leak salvage.
   private async runToolLoop(
     prompt: string,
     turn: ActiveTurn,
@@ -643,12 +661,12 @@ export class UserApp extends Think<Env> {
     // Output-token headroom rides beforeTurn() — ChatOptions has no
     // maxOutputTokens field.
     const chatConfig = { signal };
-    await this.chat(this.buildLoopPrompt(prompt), callback, chatConfig);
+    await this.chat(this.buildLoopPrompt(prompt, tier), callback, chatConfig);
     if (signal.aborted) throw new Error("timeout");
     // Surface a credential failure so the caller can degrade the tier
     // instead of burning the fallback call on a dead token.
     if (chatError && tier === "byo" && isAuthFailure(chatError)) throw new Error(chatError);
-    if (turn.changed.has(THEME_FILE)) return true;
+    if (this.turnProduced(turn, tier)) return true;
     if (chatError) return false; // degrade to the single-call path
     if (await salvage()) return true;
 
@@ -656,16 +674,29 @@ export class UserApp extends Think<Env> {
     turn.send({ kind: "status", text: "One more pass..." });
     leakedText = "";
     await this.chat(
-      `Your last reply printed the tool call as text instead of invoking it — nothing was written. Call the write tool now with path ${THEME_FILE} and the complete stylesheet as content. Do not print JSON.`,
+      tier === "byo"
+        ? "Your last reply printed the tool call as text instead of invoking it — nothing was written. Invoke the tool for real now through the tool-calling mechanism, then finish with one short sentence. Do not print JSON."
+        : `Your last reply printed the tool call as text instead of invoking it — nothing was written. Call the write tool now with path ${THEME_FILE} and the complete stylesheet as content. Do not print JSON.`,
       callback,
       chatConfig,
     );
     if (signal.aborted) throw new Error("timeout");
-    if (turn.changed.has(THEME_FILE)) return true;
+    if (this.turnProduced(turn, tier)) return true;
     return salvage();
   }
 
-  private buildLoopPrompt(request: string): string {
+  private buildLoopPrompt(request: string, tier: ModelTier): string {
+    if (tier === "byo") {
+      return [
+        `REQUEST: ${request}`,
+        "",
+        "Make this change now: read the files involved, then write your edits —",
+        `${THEME_FILE} for styling, page HTML under ${PAGES_DIR} for structure`,
+        `and content (snapshot_page a route not in the workspace yet), and`,
+        `${FORK_JS_FILE} for behavior. One tool call per step. Finish with one`,
+        "short sentence describing the change.",
+      ].join("\n");
+    }
     return [
       `REQUEST: ${request}`,
       "",
