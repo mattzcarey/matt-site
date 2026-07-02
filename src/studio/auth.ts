@@ -288,22 +288,25 @@ async function cloudflareCallback(
     return redirectBack();
   }
 
-  // The consent screen scopes the grant to the account(s) the user picked,
-  // so this usually returns exactly one; auto-pick the first.
-  const acctRes = await fetch(`${CF_API_BASE}/accounts`, {
+  // memberships.read is user-scoped and gates GET /memberships; the /accounts
+  // list needs account-settings.read, which this client deliberately lacks
+  // (bach: memberships_read = user.membership.list/read; account_settings_read
+  // = account.list). The consent screen scopes the grant to the account(s) the
+  // user picked, so the first membership with an account is the one to bill.
+  const memRes = await fetch(`${CF_API_BASE}/memberships`, {
     headers: { authorization: `Bearer ${tokens.access_token}` },
   }).catch(() => null);
-  const accounts = acctRes?.ok
-    ? ((await acctRes.json().catch(() => null)) as {
-        result?: Array<{ id?: string; name?: string }>;
+  const memberships = memRes?.ok
+    ? ((await memRes.json().catch(() => null)) as {
+        result?: Array<{ account?: { id?: string; name?: string } }>;
       } | null)
     : null;
-  const account = accounts?.result?.at(0);
+  const account = memberships?.result?.map((m) => m.account).find((a) => a?.id);
   if (!account?.id) {
     console.error(
-      "cf oauth: account discovery failed",
-      acctRes?.status,
-      accounts?.result?.length ?? "(no body)",
+      "cf oauth: membership discovery failed",
+      memRes?.status,
+      memberships?.result?.length ?? "(no body)",
     );
     return redirectBack();
   }
