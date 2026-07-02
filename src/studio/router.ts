@@ -1,8 +1,10 @@
-// The remix studio API (/api/remix/*). Page serving lives in worker.ts, which
-// injects the fork's theme into the real prerendered pages.
+// The remix studio API (/api/remix/*) and workspace-served files
+// (/remix-assets/*). Page serving lives in worker.ts, which overlays the
+// fork's edits onto the real prerendered pages.
 
 import { getAgentByName } from "agents";
-import { FORK_COOKIE } from "./config";
+import { FORK_COOKIE, PAGES_DIR, ROOT, THEME_FILE } from "./config";
+import { normalizeRoute } from "./serving";
 
 function getCookie(request: Request, name: string): string | null {
   const header = request.headers.get("Cookie") ?? "";
@@ -21,6 +23,37 @@ export function forkIdFrom(request: Request): string | null {
   return /^[a-zA-Z0-9_-]+$/.test(id) ? id : null;
 }
 
+const ASSET_TYPES: Record<string, string> = {
+  js: "text/javascript; charset=utf-8",
+  mjs: "text/javascript; charset=utf-8",
+  css: "text/css; charset=utf-8",
+  html: "text/html; charset=utf-8",
+  json: "application/json",
+  svg: "image/svg+xml",
+  txt: "text/plain; charset=utf-8",
+};
+
+// Files served straight from the fork's workspace (fork.js and friends).
+// Scope-bound under /remix-assets/ so a hostile ServiceWorker registration
+// can never claim /.
+export async function handleRemixAsset(request: Request, env: Env): Promise<Response> {
+  const forkId = forkIdFrom(request);
+  if (!forkId) return new Response("Not found", { status: 404 });
+  const url = new URL(request.url);
+  const rest = url.pathname.slice("/remix-assets/".length);
+  if (!rest || rest.includes("..")) return new Response("Not found", { status: 404 });
+  const agent = await getAgentByName(env.USERAPP, forkId);
+  const content = await agent.previewFile(`${ROOT}/${rest}`);
+  if (content === null) return new Response("Not found", { status: 404 });
+  const ext = rest.slice(rest.lastIndexOf(".") + 1).toLowerCase();
+  return new Response(content, {
+    headers: {
+      "content-type": ASSET_TYPES[ext] ?? "text/plain; charset=utf-8",
+      "cache-control": "private, no-store",
+    },
+  });
+}
+
 export async function handleStudioApi(request: Request, env: Env): Promise<Response | null> {
   const url = new URL(request.url);
   const path = url.pathname;
@@ -34,6 +67,26 @@ export async function handleStudioApi(request: Request, env: Env): Promise<Respo
 
   if (path === "/api/remix/state") {
     return Response.json(await agent.remixState());
+  }
+  // Live workspace reads: mid-turn hot-reload previews (and the committed
+  // state between turns, since the workspace is the working tree).
+  if (path === "/api/remix/preview/theme") {
+    const css = await agent.previewFile(THEME_FILE);
+    return new Response(css ?? "", {
+      headers: { "content-type": "text/css; charset=utf-8", "cache-control": "private, no-store" },
+    });
+  }
+  if (path === "/api/remix/preview/page") {
+    const route = url.searchParams.get("route") ?? "/";
+    if (route.includes("..")) return new Response("Not found", { status: 404 });
+    const html = await agent.previewFile(`${PAGES_DIR}${normalizeRoute(route)}`);
+    if (html === null) return new Response("Not found", { status: 404 });
+    return new Response(html, {
+      headers: {
+        "content-type": "text/html; charset=utf-8",
+        "cache-control": "private, no-store",
+      },
+    });
   }
   if (path === "/api/remix/reset" && request.method === "POST") {
     await agent.resetSelf();
