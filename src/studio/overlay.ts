@@ -107,18 +107,26 @@ __RX_HOT__
   function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
   function setStatus(t,err){ var e=$('rx-status'); if(e){ e.textContent=t||''; e.style.color=err?'#dc2626':''; } }
 
+  // Two mutually exclusive screens: pick a model, or customize. The customize
+  // screen is only reachable with a model chosen (signed in, or explicit free).
   function render(){
-    if(!forked()){
-      panel.innerHTML='<h3>Remix this site</h3>'
-        +'<p class="muted">Restyle it with AI. Only you see your version. Pick a model to start:</p>'
-        +'<button class="prov" id="rx-start-gpt" style="margin-top:2px">'+GPT_ICON+'<span>Sign in with ChatGPT</span></button>'
-        +'<button class="prov" id="rx-start-cf">'+CF_ICON+'<span>Sign in with Cloudflare</span></button>'
-        +'<div style="text-align:center;margin-top:10px"><a href="#" id="rx-start-free" class="muted" style="font-size:12px">use free model</a></div>';
-      $('rx-start-gpt').onclick=function(){ setCookie(forkId()); render(); startChatgpt(); };
-      $('rx-start-cf').onclick=function(){ setCookie(forkId()); location.href='/oauth/cloudflare?return_to='+encodeURIComponent(location.pathname); };
-      $('rx-start-free').onclick=function(e){ e.preventDefault(); setCookie(forkId()); setFree(true); render(); };
-      return;
-    }
+    if(!forked()){ renderChoice(); return; }
+    renderCustomize();
+  }
+
+  function renderChoice(){
+    panel.innerHTML='<h3>Remix this site</h3>'
+      +'<p class="muted">Restyle it with AI. Only you see your version. Pick a model to start:</p>'
+      +'<button class="prov" id="rx-start-gpt" style="margin-top:2px">'+GPT_ICON+'<span>Sign in with ChatGPT</span></button>'
+      +'<button class="prov" id="rx-start-cf">'+CF_ICON+'<span>Sign in with Cloudflare</span></button>'
+      +'<div style="text-align:center;margin-top:10px"><a href="#" id="rx-start-free" class="muted" style="font-size:12px">use free model</a></div>'
+      +'<div id="rx-auth" style="margin-top:10px"></div>';
+    $('rx-start-gpt').onclick=function(){ setCookie(forkId()); startChatgpt(); };
+    $('rx-start-cf').onclick=function(){ setCookie(forkId()); location.href='/oauth/cloudflare?return_to='+encodeURIComponent(location.pathname); };
+    $('rx-start-free').onclick=function(e){ e.preventDefault(); setCookie(forkId()); setFree(true); renderCustomize(); };
+  }
+
+  function renderCustomize(){
     panel.innerHTML='<h3>Customize with AI</h3>'
       +'<div id="rx-auth" style="margin:6px 0 10px"></div>'
       +'<textarea id="rx-prompt" placeholder="Describe a look... e.g. retro pixel terminal, brutalist newspaper, soft pastel zine"></textarea>'
@@ -142,25 +150,24 @@ __RX_HOT__
   function renderAuth(a){
     var el=$('rx-auth'); if(!el) return;
     if(devTimer) return; // a device-code sign-in owns the slot until it resolves
-    stopDevicePoll();
-    if(a&&a.provider){
+    if(a&&a.provider&&!a.expired){
       var line=a.provider==='chatgpt'?'Using ChatGPT ('+esc(a.label||'')+')':'Using Workers AI on '+esc(a.label||'');
-      if(a.expired){ line=(a.provider==='chatgpt'?'ChatGPT':'Cloudflare')+' session expired'; }
       el.innerHTML='<span class="muted" style="font-size:13px">'+line+'</span> &middot; <a href="#" id="rx-signout" style="font-size:12px">sign out</a>';
       $('rx-signout').onclick=function(e){ e.preventDefault(); signOut(); };
       return;
     }
     if(freeChosen()){
-      el.innerHTML='<span class="muted" style="font-size:13px">Using the free model.</span> <a href="#" id="rx-signin" style="font-size:12px">sign in</a>';
-      $('rx-signin').onclick=function(e){ e.preventDefault(); setFree(false); renderAuth(null); };
+      el.innerHTML='<span class="muted" style="font-size:13px">Using the free model.</span> <a href="#" id="rx-switch" style="font-size:12px">switch model</a>';
+      $('rx-switch').onclick=function(e){ e.preventDefault(); setFree(false); renderChoice(); };
       return;
     }
-    el.innerHTML='<button class="prov" id="rx-auth-gpt" style="margin-top:2px">'+GPT_ICON+'<span>Sign in with ChatGPT</span></button>'
-      +'<button class="prov" id="rx-auth-cf">'+CF_ICON+'<span>Sign in with Cloudflare</span></button>'
-      +'<div style="text-align:center;margin-top:8px"><a href="#" id="rx-auth-free" class="muted" style="font-size:12px">use free model</a></div>';
-    $('rx-auth-gpt').onclick=startChatgpt;
-    $('rx-auth-cf').onclick=function(){ location.href='/oauth/cloudflare?return_to='+encodeURIComponent(location.pathname); };
-    $('rx-auth-free').onclick=function(e){ e.preventDefault(); setFree(true); renderAuth(null); var t=$('rx-prompt'); if(t) t.focus(); };
+    // No model chosen (or session expired): the customize screen is not a
+    // valid place to be — back to the choice screen.
+    renderChoice();
+    if(a&&a.expired){
+      var slot=$('rx-auth');
+      if(slot){ slot.innerHTML='<div class="muted" style="font-size:12px;text-align:center">Session expired — sign in again.</div>'; }
+    }
   }
 
   function startChatgpt(){
@@ -177,7 +184,7 @@ __RX_HOT__
         fetch('/auth/chatgpt/callback',{method:'POST'}).then(function(r){
           return r.json().then(function(j){ return { status:r.status, body:j }; });
         }).then(function(res){
-          if(res.body&&res.body.ok){ stopDevicePoll(); setFree(false); loadLog(); return; }
+          if(res.body&&res.body.ok){ stopDevicePoll(); setFree(false); renderCustomize(); return; }
           if(res.status===429||(res.body&&res.body.pending)) return;
           stopDevicePoll();
           var ds=$('rx-dev-status');

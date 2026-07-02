@@ -51,12 +51,11 @@ export const CF_OAUTH_REVOKE_URL = "https://dash.cloudflare.com/oauth2/revoke";
 export const CF_OAUTH_REDIRECT_URI = "https://mattzcarey.com/oauth/cloudflare/callback";
 // Dot-form self-serve scope ids; offline_access rides the refresh_token grant.
 // Hydra rejects any scope the dash client wasn't granted, so this must match
-// the client's grants exactly (currently: Workers AI Edit + User Details Read).
-// ai.write subsumes ai.read (bach role "Workers AI Write" carries ai.run/list/
-// read/create). GET /accounts discovery appears to work with any
-// account-scoped token; if it 403s, grant Memberships Read and add
-// memberships.read back here.
-export const CF_OAUTH_SCOPES = "ai.write user-details.read offline_access";
+// the client's grants exactly. ai.write subsumes ai.read (bach role "Workers
+// AI Write" carries ai.run/list/read/create). memberships.read is required in
+// practice: GET /accounts returns nothing without it and the callback can't
+// discover the account to bill.
+export const CF_OAUTH_SCOPES = "ai.write user-details.read memberships.read offline_access";
 export const CF_API_BASE = "https://api.cloudflare.com/client/v4";
 
 // "Sign in with ChatGPT": device-code flow against the public Codex client.
