@@ -1,4 +1,5 @@
-// The floating "remix" widget, baked into every page via the Astro Layout.
+// The floating "remix" widget, baked into every page via the Astro Layout
+// (and re-appended serve-time on fork-served pages — see serving.ts).
 // Styled to match the site: white/#111010 surfaces, neutral grays, Kaisei
 // Tokumin serif headings, dark mode via prefers-color-scheme.
 //
@@ -6,7 +7,10 @@
 // theme CSS (which targets the page) cannot restyle it.
 //
 // The whole flow happens in place on whatever page you're on: start a remix,
-// describe a change, the page reloads restyled.
+// describe a change, and watch the page restyle live as the agent writes —
+// hot reload, no page load (hotreload.ts is spliced into this IIFE).
+
+import { HOTRELOAD_JS } from "./hotreload";
 
 const WIDGET_CSS = `
 #remix-fab{position:fixed;right:20px;bottom:20px;width:44px;height:44px;border-radius:9999px;
@@ -66,6 +70,8 @@ const OVERLAY_SCRIPT = `<script>
   }
   function forked(){ return !!stored(); }
   if(forked()) setCookie(stored());
+
+__RX_HOT__
 
   // Shadow DOM: the widget carries its own stylesheet; page/theme CSS can't
   // reach inside.
@@ -134,6 +140,7 @@ const OVERLAY_SCRIPT = `<script>
   function generate(){
     var p=($('rx-prompt').value||'').trim(); if(!p) return;
     var gen=$('rx-gen'); gen.disabled=true; setStatus('Starting...');
+    rxBeginTurn();
     fetch('/api/remix/agent',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({prompt:p})})
       .then(function(resp){
         if(!resp.body){ throw new Error('no stream'); }
@@ -147,15 +154,21 @@ const OVERLAY_SCRIPT = `<script>
             var msg; try{ msg=JSON.parse(line); }catch(e){ continue; }
             if(msg.kind==='status'){ setStatus(msg.text); }
             else if(msg.kind==='event'){ var c; try{c=JSON.parse(msg.chunk);}catch(e){continue;} var a=activity(c); if(a) setStatus(a); }
+            else if(msg.kind==='css'||msg.kind==='page'||msg.kind==='file'){
+              rxHandleHot(msg);
+              if(msg.kind==='file'){ setStatus((msg.change==='delete'?'deleting ':'writing ')+String(msg.path||'').replace('/site/','')+'...'); }
+              else if(msg.kind==='css'){ setStatus('restyling theme.css...'); }
+            }
             else if(msg.kind==='done'){
-              if(msg.error){ setStatus(msg.error,true); gen.disabled=false; }
-              else { setStatus('Done — reloading...'); setTimeout(function(){ location.reload(); },400); }
+              if(msg.error){ rxFinishTurn(false); setStatus(msg.error,true); }
+              else { rxFinishTurn(true); setStatus('Applied — this is your remix now.'); $('rx-prompt').value=''; loadLog(); }
+              gen.disabled=false;
             }
           }
           return pump();
         }); }
         return pump();
-      }).catch(function(e){ setStatus(String(e),true); gen.disabled=false; });
+      }).catch(function(e){ rxFinishTurn(false); setStatus(String(e),true); gen.disabled=false; });
   }
   function revert(id){
     setStatus('Reverting...');
@@ -173,5 +186,8 @@ const OVERLAY_SCRIPT = `<script>
 </script>`;
 
 export function appOverlay(): string {
-  return OVERLAY_SCRIPT.replace("__RX_CSS__", JSON.stringify(WIDGET_CSS));
+  return OVERLAY_SCRIPT.replace("__RX_CSS__", JSON.stringify(WIDGET_CSS)).replace(
+    "__RX_HOT__",
+    HOTRELOAD_JS,
+  );
 }
