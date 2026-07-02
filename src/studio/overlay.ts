@@ -137,7 +137,7 @@ const OVERLAY_SCRIPT = `<script>
       +'<button class="act" id="rx-auth-cf" style="margin-top:8px">Sign in with Cloudflare</button>'
       +'<div style="text-align:center;margin-top:8px"><a href="#" id="rx-auth-free" class="muted" style="font-size:12px">use free model</a></div>';
     $('rx-auth-gpt').onclick=startChatgpt;
-    $('rx-auth-cf').onclick=function(){ location.href='/auth/cloudflare?return_to='+encodeURIComponent(location.pathname); };
+    $('rx-auth-cf').onclick=function(){ location.href='/oauth/cloudflare?return_to='+encodeURIComponent(location.pathname); };
     $('rx-auth-free').onclick=function(e){ e.preventDefault(); setFree(true); renderAuth(null); var t=$('rx-prompt'); if(t) t.focus(); };
   }
 

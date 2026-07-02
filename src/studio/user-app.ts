@@ -92,6 +92,16 @@ export class UserApp extends Think<Env> {
     return record;
   }
 
+  // Throttle for the ChatGPT device-code poll relay. The signed tx cookie is
+  // client-held (replayable), so the last-poll timestamp must live here.
+  async devicePollGate(minIntervalMs: number): Promise<boolean> {
+    const last = (await this.ctx.storage.get<number>("devicePollAt")) ?? 0;
+    const now = Date.now();
+    if (now - last < minIntervalMs) return false;
+    await this.ctx.storage.put("devicePollAt", now);
+    return true;
+  }
+
   private async markAuthExpired(): Promise<void> {
     const record = await this.ctx.storage.get<AuthRecord>("auth");
     if (record) await this.ctx.storage.put("auth", { ...record, invalid: true });
@@ -402,7 +412,14 @@ export class UserApp extends Think<Env> {
   async resetSelf(): Promise<void> {
     await this.workspace.rm(ROOT, { recursive: true }).catch(() => undefined);
     await this.clearMessages().catch(() => undefined);
-    for (const key of ["versions", "currentId", "seedVersion", "auth", "freeUsage"]) {
+    for (const key of [
+      "versions",
+      "currentId",
+      "seedVersion",
+      "auth",
+      "freeUsage",
+      "devicePollAt",
+    ]) {
       await this.ctx.storage.delete(key);
     }
     this.readyPromise = undefined;

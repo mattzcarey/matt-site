@@ -55,9 +55,15 @@ export async function sha256b64url(input: string): Promise<string> {
 }
 
 function signingKey(env: Env): Promise<CryptoKey> {
+  const secret = env.CF_OAUTH_CLIENT_SECRET;
+  if (!secret) {
+    // Fail closed: signing with a known constant would make every cookie
+    // signature forgeable.
+    throw new Error("CF_OAUTH_CLIENT_SECRET is unset — refusing to sign/verify auth cookies");
+  }
   return crypto.subtle.importKey(
     "raw",
-    enc.encode(`remix-auth:${env.CF_OAUTH_CLIENT_SECRET ?? ""}`),
+    enc.encode(`remix-auth:${secret}`),
     { name: "HMAC", hash: "SHA-256" },
     false,
     ["sign", "verify"],

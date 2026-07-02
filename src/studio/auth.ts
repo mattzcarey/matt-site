@@ -17,6 +17,7 @@ import {
   CF_API_BASE,
   CF_OAUTH_AUTHORIZE_URL,
   CF_OAUTH_CLIENT_ID,
+  CF_OAUTH_REDIRECT_URI,
   CF_OAUTH_REVOKE_URL,
   CF_OAUTH_SCOPES,
   CF_OAUTH_TOKEN_URL,
@@ -69,7 +70,6 @@ interface DeviceTx {
   userCode: string;
   forkId: string;
   interval: number;
-  lastPoll: number;
   iat: number;
 }
 
@@ -79,7 +79,10 @@ interface GrantCookie {
 }
 
 const CF_TX_COOKIE = "rx_oauth_tx";
-const CF_TX_PATH = "/auth/cloudflare";
+// Cookie path covers both /oauth/cloudflare and /oauth/cloudflare/callback.
+const CF_AUTH_PATH = "/oauth/cloudflare";
+const CF_CALLBACK_PATH = new URL(CF_OAUTH_REDIRECT_URI).pathname;
+const CF_TX_PATH = CF_AUTH_PATH;
 const CF_TX_MAX_AGE = 600;
 const DEVICE_TX_COOKIE = "rx_device_tx";
 const DEVICE_TX_PATH = "/auth/chatgpt";
@@ -119,10 +122,21 @@ function isSameOrigin(request: Request, url: URL): boolean {
   return true;
 }
 
-// return_to is only ever a same-origin path.
+// return_to is only ever a same-origin path. new URL() treats "\" like "/"
+// (so "/\evil.com" resolves off-origin); reject backslashes and require the
+// origin to survive a parse against a fixed base.
 function sanitizeReturnTo(value: string | null): string {
-  if (value && value.length <= 512 && /^\/(?!\/)\S*$/.test(value)) return value;
-  return "/";
+  if (!value || value.length > 512 || value.includes("\\") || !/^\/(?!\/)\S*$/.test(value)) {
+    return "/";
+  }
+  try {
+    const base = "https://return-to.invalid";
+    const parsed = new URL(value, base);
+    if (parsed.origin !== base) return "/";
+    return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+  } catch {
+    return "/";
+  }
 }
 
 function cfBasicAuth(env: Env): string {
@@ -139,7 +153,9 @@ async function grantCookieFor(env: Env, forkId: string): Promise<string> {
 export async function hasPaidGrant(request: Request, env: Env, forkId: string): Promise<boolean> {
   const raw = getCookie(request, AUTH_COOKIE);
   if (!raw) return false;
-  const grant = await verifyPayload<GrantCookie>(env, raw, GRANT_MAX_AGE * 1000);
+  // On a missing signing secret verifyPayload throws; degrade to the free
+  // tier rather than failing the restyle route.
+  const grant = await verifyPayload<GrantCookie>(env, raw, GRANT_MAX_AGE * 1000).catch(() => null);
   return grant?.forkId === forkId;
 }
 
@@ -208,7 +224,7 @@ async function startCloudflare(url: URL, env: Env, forkId: string): Promise<Resp
   const authorize = new URL(CF_OAUTH_AUTHORIZE_URL);
   authorize.searchParams.set("response_type", "code");
   authorize.searchParams.set("client_id", CF_OAUTH_CLIENT_ID);
-  authorize.searchParams.set("redirect_uri", new URL("/auth/cloudflare/callback", url).toString());
+  authorize.searchParams.set("redirect_uri", CF_OAUTH_REDIRECT_URI);
   authorize.searchParams.set("scope", CF_OAUTH_SCOPES);
   authorize.searchParams.set("state", state);
   authorize.searchParams.set("code_challenge", await sha256b64url(verifier));
@@ -256,7 +272,7 @@ async function cloudflareCallback(
     body: new URLSearchParams({
       grant_type: "authorization_code",
       code,
-      redirect_uri: new URL("/auth/cloudflare/callback", url).toString(),
+      redirect_uri: CF_OAUTH_REDIRECT_URI,
       code_verifier: tx.verifier,
     }),
   }).catch(() => null);
@@ -311,7 +327,6 @@ async function startChatgpt(env: Env, forkId: string): Promise<Response> {
     userCode: data.user_code,
     forkId,
     interval,
-    lastPoll: 0,
     iat: Date.now(),
   };
   return Response.json(
@@ -335,9 +350,11 @@ async function pollChatgpt(request: Request, env: Env, forkId: string): Promise<
   if (!tx || tx.forkId !== forkId) {
     return Response.json({ error: "Sign-in expired — start again." }, { status: 400 });
   }
-  const now = Date.now();
-  // Enforce the upstream poll interval server-side (small slack for jitter).
-  if (now - tx.lastPoll < tx.interval * 1000 - 250) {
+  // Enforce the upstream poll interval server-side. The gate lives in the DO
+  // (the tx cookie is client-held, so a scripted caller could replay an old
+  // copy to reset any cookie-tracked timestamp). Small slack for timer jitter.
+  const agent = await getAgentByName(env.USERAPP, forkId);
+  if (!(await agent.devicePollGate(tx.interval * 1000 - 250))) {
     return Response.json({ pending: true }, { status: 429 });
   }
 
@@ -348,18 +365,7 @@ async function pollChatgpt(request: Request, env: Env, forkId: string): Promise<
   }).catch(() => null);
   // 403/404 while the user hasn't approved yet; treat upstream 429 as pending.
   if (!pollRes || [403, 404, 429].includes(pollRes.status)) {
-    const bumped = await signPayload(env, { ...tx, lastPoll: now } satisfies DeviceTx);
-    return Response.json(
-      { pending: true },
-      {
-        headers: {
-          "set-cookie": serializeCookie(DEVICE_TX_COOKIE, bumped, {
-            path: DEVICE_TX_PATH,
-            maxAge: DEVICE_TX_MAX_AGE,
-          }),
-        },
-      },
-    );
+    return Response.json({ pending: true });
   }
   const failed = (message: string, status: number) =>
     Response.json(
@@ -405,7 +411,6 @@ async function pollChatgpt(request: Request, env: Env, forkId: string): Promise<
   if (typeof plan === "string" && plan) parts.push(plan.charAt(0).toUpperCase() + plan.slice(1));
   const label = parts.join(" · ") || "ChatGPT";
 
-  const agent = await getAgentByName(env.USERAPP, forkId);
   await agent.setAuth({
     provider: "chatgpt",
     accessToken: tokens.access_token,
@@ -450,7 +455,8 @@ async function logout(env: Env, forkId: string): Promise<Response> {
 
 export async function handleAuth(request: Request, env: Env): Promise<Response | null> {
   const url = new URL(request.url);
-  if (!url.pathname.startsWith("/auth/")) return null;
+  const isCfOauthPath = url.pathname === CF_AUTH_PATH || url.pathname === CF_CALLBACK_PATH;
+  if (!url.pathname.startsWith("/auth/") && !isCfOauthPath) return null;
 
   // All auth routes operate on an existing fork.
   const forkId = forkIdFrom(request);
@@ -463,10 +469,10 @@ export async function handleAuth(request: Request, env: Env): Promise<Response |
     return Response.json({ error: "Cross-origin request refused." }, { status: 403 });
   }
 
-  if (url.pathname === "/auth/cloudflare" && request.method === "GET") {
+  if (url.pathname === CF_AUTH_PATH && request.method === "GET") {
     return startCloudflare(url, env, forkId);
   }
-  if (url.pathname === "/auth/cloudflare/callback" && request.method === "GET") {
+  if (url.pathname === CF_CALLBACK_PATH && request.method === "GET") {
     return cloudflareCallback(request, url, env, forkId);
   }
   if (url.pathname === "/auth/chatgpt" && request.method === "POST") {

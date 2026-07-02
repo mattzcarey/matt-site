@@ -24,6 +24,9 @@ export const CF_OAUTH_CLIENT_ID = "475794bcb17db3c3e4bef4a2070923e8";
 export const CF_OAUTH_AUTHORIZE_URL = "https://dash.cloudflare.com/oauth2/auth";
 export const CF_OAUTH_TOKEN_URL = "https://dash.cloudflare.com/oauth2/token";
 export const CF_OAUTH_REVOKE_URL = "https://dash.cloudflare.com/oauth2/revoke";
+// Must byte-match the redirect registered on the OAuth client, in both the
+// authorize URL and the token-exchange body.
+export const CF_OAUTH_REDIRECT_URI = "https://mattzcarey.com/oauth/cloudflare/callback";
 // Dot-form self-serve scope ids; offline_access rides the refresh_token grant.
 export const CF_OAUTH_SCOPES = "ai.read ai.write user-details.read memberships.read offline_access";
 export const CF_API_BASE = "https://api.cloudflare.com/client/v4";

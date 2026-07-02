@@ -42,7 +42,8 @@ forked visitor   -> same real HTML, with <style id="remix-theme"> injected
 
 ## Files
 
-- `src/worker.ts` — entry; exports `UserApp`, routes `/auth/*` + `/api/remix/*`,
+- `src/worker.ts` — entry; exports `UserApp`, routes `/auth/*` +
+  `/oauth/cloudflare[/callback]` + `/api/remix/*`,
   injects the theme into HTML asset responses, passes everything else through.
 - `src/studio/router.ts` — the API handlers.
 - `src/studio/auth.ts` — BYO-model sign-in: Cloudflare OAuth (code + PKCE),
