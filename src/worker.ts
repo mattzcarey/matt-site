@@ -9,6 +9,7 @@
 // The HTML never changes — content is locked by construction; only CSS varies.
 
 import { getAgentByName } from "agents";
+import { handleAuth } from "./studio/auth";
 import { forkIdFrom, handleStudioApi } from "./studio/router";
 
 export { UserApp } from "./studio/user-app";
@@ -21,6 +22,9 @@ export default {
     if (url.pathname === "/remix" || url.pathname.startsWith("/remix/")) {
       return Response.redirect(new URL("/", url).toString(), 301);
     }
+
+    const auth = await handleAuth(request, env);
+    if (auth) return auth;
 
     const api = await handleStudioApi(request, env);
     if (api) return api;

@@ -14,6 +14,34 @@ export const MODEL = "@cf/openai/gpt-oss-20b";
 // to their own ephemeral fork Durable Object.
 export const FORK_COOKIE = "remix_fork";
 
+// ── BYO-model auth (see PLANS/byo-auth.md) ──────────────────────────────
+// Paid-tier grant cookie: HMAC(forkId), HttpOnly. Set on sign-in so a leaked
+// localStorage fork id alone cannot spend a signed-in user's tokens.
+export const AUTH_COOKIE = "remix_auth";
+
+// Cloudflare self-serve OAuth client (public client id, safe to commit).
+export const CF_OAUTH_CLIENT_ID = "475794bcb17db3c3e4bef4a2070923e8";
+export const CF_OAUTH_AUTHORIZE_URL = "https://dash.cloudflare.com/oauth2/auth";
+export const CF_OAUTH_TOKEN_URL = "https://dash.cloudflare.com/oauth2/token";
+export const CF_OAUTH_REVOKE_URL = "https://dash.cloudflare.com/oauth2/revoke";
+// Dot-form self-serve scope ids; offline_access rides the refresh_token grant.
+export const CF_OAUTH_SCOPES = "ai.read ai.write user-details.read memberships.read offline_access";
+export const CF_API_BASE = "https://api.cloudflare.com/client/v4";
+
+// "Sign in with ChatGPT": device-code flow against the public Codex client.
+export const CODEX_CLIENT_ID = "app_EMoamEEZ73f0CkXaXp7hrann";
+export const OPENAI_ISSUER = "https://auth.openai.com";
+export const CHATGPT_VERIFY_URL = `${OPENAI_ISSUER}/codex/device`;
+export const CHATGPT_CODEX_BASE_URL = "https://chatgpt.com/backend-api/codex";
+// UNVERIFIED best guesses pending a manual curl with a real ChatGPT token
+// (PLANS/byo-auth.md §7.1/§7.3): the slug catalog is server-driven and the
+// OpenAI-Beta value for the plain SSE POST is undocumented.
+export const CHATGPT_MODEL = "gpt-5.5";
+export const CHATGPT_OPENAI_BETA = "responses=experimental";
+
+// The free tier is the only Matt-billed tier; cap restyles per fork per day.
+export const FREE_RESTYLES_PER_DAY = 10;
+
 // Workspace layout inside each fork's Durable Object.
 export const ROOT = "/site";
 export const THEME_FILE = "/site/theme.css";
