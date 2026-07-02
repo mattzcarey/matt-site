@@ -139,8 +139,10 @@ function sanitizeReturnTo(value: string | null): string {
   }
 }
 
-function cfBasicAuth(env: Env): string {
-  return `Basic ${btoa(`${CF_OAUTH_CLIENT_ID}:${env.CF_OAUTH_CLIENT_SECRET ?? ""}`)}`;
+// The dash-created client authenticates with client_secret_post: credentials
+// go in the form body (Hydra 401s invalid_client on a Basic header).
+function cfClientCreds(env: Env): Record<string, string> {
+  return { client_id: CF_OAUTH_CLIENT_ID, client_secret: env.CF_OAUTH_CLIENT_SECRET ?? "" };
 }
 
 async function grantCookieFor(env: Env, forkId: string): Promise<string> {
@@ -172,13 +174,11 @@ export async function refreshAuthRecord(
       record.provider === "cloudflare"
         ? await fetch(CF_OAUTH_TOKEN_URL, {
             method: "POST",
-            headers: {
-              authorization: cfBasicAuth(env),
-              "content-type": "application/x-www-form-urlencoded",
-            },
+            headers: { "content-type": "application/x-www-form-urlencoded" },
             body: new URLSearchParams({
               grant_type: "refresh_token",
               refresh_token: record.refreshToken,
+              ...cfClientCreds(env),
             }),
           })
         : await fetch(`${OPENAI_ISSUER}/oauth/token`, {
@@ -265,15 +265,13 @@ async function cloudflareCallback(
 
   const tokenRes = await fetch(CF_OAUTH_TOKEN_URL, {
     method: "POST",
-    headers: {
-      authorization: cfBasicAuth(env),
-      "content-type": "application/x-www-form-urlencoded",
-    },
+    headers: { "content-type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
       grant_type: "authorization_code",
       code,
       redirect_uri: CF_OAUTH_REDIRECT_URI,
       code_verifier: tx.verifier,
+      ...cfClientCreds(env),
     }),
   }).catch(() => null);
   if (!tokenRes?.ok) {
@@ -457,11 +455,8 @@ async function logout(env: Env, forkId: string): Promise<Response> {
       if (!token) continue;
       await fetch(CF_OAUTH_REVOKE_URL, {
         method: "POST",
-        headers: {
-          authorization: cfBasicAuth(env),
-          "content-type": "application/x-www-form-urlencoded",
-        },
-        body: new URLSearchParams({ token, token_type_hint: hint }),
+        headers: { "content-type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({ token, token_type_hint: hint, ...cfClientCreds(env) }),
       }).catch(() => undefined);
     }
   }
