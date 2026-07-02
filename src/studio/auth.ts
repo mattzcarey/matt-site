@@ -301,13 +301,33 @@ async function cloudflareCallback(
         result?: Array<{ account?: { id?: string; name?: string } }>;
       } | null)
     : null;
-  const account = memberships?.result?.map((m) => m.account).find((a) => a?.id);
-  if (!account?.id) {
+  const candidates = (memberships?.result ?? [])
+    .map((m) => m.account)
+    .filter((a): a is { id: string; name?: string } => Boolean(a?.id))
+    .slice(0, 15);
+  if (candidates.length === 0) {
     console.error(
       "cf oauth: membership discovery failed",
       memRes?.status,
       memberships?.result?.length ?? "(no body)",
     );
+    return redirectBack();
+  }
+  // /memberships lists ALL the user's accounts, not just the consented one —
+  // the token only holds ai permissions on the account picked at consent, so
+  // probe each with an ai-gated call and keep the one that answers.
+  const probes = await Promise.all(
+    candidates.map(async (candidate) => {
+      const probe = await fetch(
+        `${CF_API_BASE}/accounts/${candidate.id}/ai/models/search?per_page=1`,
+        { headers: { authorization: `Bearer ${tokens.access_token}` } },
+      ).catch(() => null);
+      return probe?.ok ? candidate : null;
+    }),
+  );
+  const account = probes.find((candidate) => candidate !== null);
+  if (!account?.id) {
+    console.error("cf oauth: no membership passed the ai probe", candidates.length);
     return redirectBack();
   }
 
