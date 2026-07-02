@@ -79,7 +79,7 @@ const OVERLAY_SCRIPT = `<script>
   function render(){
     if(!forked()){
       panel.innerHTML='<h3>Remix this site</h3>'
-        +'<p class="muted">Restyle this website with AI — your own private version, right here. The words stay Matt\\'s; the look becomes yours.</p>'
+        +'<p class="muted">Restyle it with AI. Only you see your version.</p>'
         +'<button class="act" id="rx-start">Start remixing</button>';
       document.getElementById('rx-start').onclick=function(){ setCookie(forkId()); render(); };
       return;
