@@ -1,6 +1,9 @@
-// Host-injected floating panel: a fork button that opens either "start
-// remixing" (anonymous) or "customize with AI" + version history (forked).
-// Injected into the served HTML just before </body>.
+// Floating "remix" widget, shown on every page (baked into the Astro Layout and
+// also injected onto the /remix studio HTML). It figures out its own state in
+// the browser, so it needs no server-rendered flag:
+//   - off /remix ("entry" mode): invites you into the studio (or opens your
+//     existing remix). The actual restyling happens in the studio.
+//   - on /remix ("studio" mode): the full fork / customize-with-AI panel.
 
 const OVERLAY_STYLE = `<style>
 #remix-fab{position:fixed;right:16px;bottom:16px;width:54px;height:54px;border-radius:50%;
@@ -32,21 +35,24 @@ background:#f6821f;color:#111;font-weight:600;cursor:pointer}
 
 const OVERLAY_SCRIPT = `<script>
 (function(){
-  var R = window.__REMIX || { forked:false };
-  var COOKIE = "remix_fork";
-  function setCookie(v){ document.cookie = COOKIE+"="+encodeURIComponent(v)+"; Path=/; Max-Age=604800; SameSite=Lax"; }
-  function clearCookie(){ document.cookie = COOKIE+"=; Path=/; Max-Age=0"; }
+  if(window.__remixMounted) return; window.__remixMounted=true;
+  var COOKIE="remix_fork";
+  function setCookie(v){ document.cookie=COOKIE+"="+encodeURIComponent(v)+"; Path=/; Max-Age=604800; SameSite=Lax"; }
+  function clearCookie(){ document.cookie=COOKIE+"=; Path=/; Max-Age=0"; }
+  function stored(){ try{ return localStorage.getItem(COOKIE); }catch(e){ return null; } }
   function forkId(){
-    try {
-      var id = localStorage.getItem(COOKIE);
-      if(!id){ id = (crypto.randomUUID && crypto.randomUUID()) || String(Date.now())+Math.random().toString(16).slice(2); localStorage.setItem(COOKIE, id); }
-      return id;
-    } catch(e){ return String(Date.now()); }
+    var id=stored();
+    if(!id){ id=(crypto.randomUUID && crypto.randomUUID()) || String(Date.now())+Math.random().toString(16).slice(2); try{localStorage.setItem(COOKIE,id);}catch(e){} }
+    return id;
   }
+  function isStudio(){ var p=location.pathname; return p==="/remix"||p.indexOf("/remix/")===0; }
+  function forked(){ return !!stored(); }
+  // keep the routing cookie in sync with the device's saved fork id
+  if(forked()) setCookie(stored());
 
   var fab=document.createElement('button');
   fab.id='remix-fab';
-  fab.title = R.forked ? 'Customize your remix' : 'Remix this site';
+  fab.title=forked()?'Your remix':'Remix this site';
   fab.innerHTML='<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2.2"/><circle cx="18" cy="6" r="2.2"/><circle cx="12" cy="19" r="2.2"/><path d="M6 8.2v1.3a3 3 0 0 0 3 3h6a3 3 0 0 0 3-3V8.2"/><path d="M12 12.8v4"/></svg>';
   var panel=document.createElement('div');
   panel.id='remix-panel'; panel.style.display='none';
@@ -59,14 +65,33 @@ const OVERLAY_SCRIPT = `<script>
   var toggleHtml='<div class="rx-toggle"><span class="muted">Model</span>'
     +'<button class="rx-mode" data-m="fast">&#9889; Fast</button>'
     +'<button class="rx-mode" data-m="capable">&#129504; Capable</button></div>';
-  function curModel(){ try{ return localStorage.getItem('remixModel')==='fast'?'fast':'capable'; }catch(e){ return 'capable'; } }
+  function curModel(){ try{ return localStorage.getItem('remixModel')==='capable'?'capable':'fast'; }catch(e){ return 'fast'; } }
   function paintToggle(){ var cur=curModel(); var b=panel.querySelectorAll('.rx-mode'); for(var i=0;i<b.length;i++){ b[i].className='rx-mode'+(b[i].getAttribute('data-m')===cur?' on':''); } }
   function wireToggle(){ var b=panel.querySelectorAll('.rx-mode'); for(var i=0;i<b.length;i++){ b[i].addEventListener('click', function(){ try{localStorage.setItem('remixModel',this.getAttribute('data-m'));}catch(e){} paintToggle(); }); } paintToggle(); }
 
   function render(){
-    if(!R.forked){
+    // Off the studio: an entry point. The restyling happens in the studio.
+    if(!isStudio()){
+      if(!forked()){
+        panel.innerHTML='<h3>Remix this site</h3>'
+          +'<p class="muted">Get your own private, throwaway copy of this site and restyle it with AI. The content stays Matt\\'s — you change the look.</p>'
+          +'<button class="act" id="rx-open">Start remixing &#8594;</button>';
+        document.getElementById('rx-open').onclick=function(){ setCookie(forkId()); location.href='/remix'; };
+      } else {
+        panel.innerHTML='<h3>Your remix</h3>'
+          +'<p class="muted">You have a saved remix of this site on this device.</p>'
+          +'<button class="act" id="rx-open">Open your remix &#8594;</button>'
+          +'<div style="margin-top:14px;padding-top:12px;border-top:1px solid #26262e;text-align:right">'
+          +'<a href="#" id="rx-reset" style="color:#9a9aa6;font-size:12px;text-decoration:none">Discard remix &#8617;</a></div>';
+        document.getElementById('rx-open').onclick=function(){ location.href='/remix'; };
+        document.getElementById('rx-reset').onclick=function(e){ e.preventDefault(); reset(); };
+      }
+      return;
+    }
+    // In the studio: fork, then the full customize panel.
+    if(!forked()){
       panel.innerHTML='<h3>Remix this site</h3>'
-        +'<p class="muted">Get your own private, throwaway copy of this page and restyle it with AI. The content stays Matt\\'s — you change the look.</p>'
+        +'<p class="muted">Get your own private, throwaway copy you can restyle with AI. The content stays Matt\\'s — you change the look.</p>'
         +'<button class="act" id="rx-start">Start remixing</button>';
       document.getElementById('rx-start').onclick=function(){ setCookie(forkId()); location.reload(); };
       return;
@@ -141,13 +166,12 @@ const OVERLAY_SCRIPT = `<script>
   function reset(){
     if(!confirm('Discard your remix and go back to the original?')) return;
     setStatus('Resetting...');
-    fetch('/api/remix/reset',{method:'POST'}).then(function(){ try{localStorage.removeItem('remix_fork');}catch(e){} clearCookie(); location.reload(); })
+    fetch('/api/remix/reset',{method:'POST'}).then(function(){ try{localStorage.removeItem(COOKIE);}catch(e){} clearCookie(); location.reload(); })
       .catch(function(e){ setStatus(String(e),true); });
   }
 })();
 </script>`;
 
-export function appOverlay(forked: boolean): string {
-  const flag = JSON.stringify({ forked });
-  return `<script>window.__REMIX=${flag};</script>` + OVERLAY_STYLE + OVERLAY_SCRIPT;
+export function appOverlay(): string {
+  return OVERLAY_STYLE + OVERLAY_SCRIPT;
 }

@@ -74,7 +74,7 @@ export async function handleStudio(request: Request, env: Env): Promise<Response
   const target = forkId ?? BASE_TARGET;
   const agent = await getAgentByName(env.USERAPP, target);
   try {
-    return await agent.serve(path, forkId !== null);
+    return await agent.serve(path);
   } catch (err) {
     return new Response("remix error: " + String(err), { status: 500 });
   }

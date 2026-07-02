@@ -325,7 +325,7 @@ export class UserApp extends Think<Env> {
   }
 
   // ── RPC: serve the built app ────────────────────────────────────────
-  async serve(pathname: string, forked: boolean): Promise<Response> {
+  async serve(pathname: string): Promise<Response> {
     await this.ensureReady();
     const built = this.build!;
     let sub = pathname.slice(STUDIO_PREFIX.length);
@@ -343,7 +343,7 @@ export class UserApp extends Think<Env> {
 
     let html = (built.assets["/index.html"] as string) ?? "";
     html = html.replace(CONTENT_PLACEHOLDER, contentJson());
-    const overlay = appOverlay(forked);
+    const overlay = appOverlay();
     html = html.includes("</body>") ? html.replace("</body>", overlay + "</body>") : html + overlay;
     return new Response(html, {
       headers: { "content-type": "text/html;charset=utf-8", "cache-control": "no-store" },
