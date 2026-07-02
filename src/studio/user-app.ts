@@ -460,7 +460,10 @@ export class UserApp extends Think<Env> {
       return true;
     };
 
-    await this.chat(this.buildLoopPrompt(prompt), callback, { signal });
+    // Without explicit headroom the Workers AI default output cap (~256
+    // tokens) truncates the write tool's args mid-stylesheet.
+    const chatConfig = { signal, maxOutputTokens: 8000 };
+    await this.chat(this.buildLoopPrompt(prompt), callback, chatConfig);
     if (signal.aborted) throw new Error("timeout");
     if (turn.changed.has(THEME_FILE)) return true;
     if (chatError) return false; // degrade to the single-call path
@@ -472,7 +475,7 @@ export class UserApp extends Think<Env> {
     await this.chat(
       `Your last reply printed the tool call as text instead of invoking it — nothing was written. Call the write tool now with path ${THEME_FILE} and the complete stylesheet as content. Do not print JSON.`,
       callback,
-      { signal },
+      chatConfig,
     );
     if (signal.aborted) throw new Error("timeout");
     if (turn.changed.has(THEME_FILE)) return true;
