@@ -1,63 +1,142 @@
 // Shared constants for the remix studio.
 
-// Model for the restyling agent. "@cf/" slugs run on the Workers AI binding;
-// anything else goes to the OpenAI API (OPENAI_API_KEY secret).
-// Benchmarked on the full theme task (complete CSS, warmed, median of 2):
-// gpt-oss-20b 7.4s / gpt-oss-120b 15.8s (both clean, complete, keyframes);
-// llama-4-scout 6.7s but invalid selectors; qwen2.5-coder thin output;
-// glm-4.7-flash 40s / kimi-k2.6 34s / glm-5.2 53s — thinking models truncate
-// at the token cap on themes this size.
-// Full restyle turn (single call, real prompt): 20b ~10-16s, 120b ~35s.
-export const MODEL = "@cf/openai/gpt-oss-20b";
+// Model tiers. "free" is the anonymous default; "byo" is the signed-in
+// bring-your-own-credential tier (wired separately — see getModelFor in
+// user-app.ts, the integration seam it flips).
+export type ModelTier = "free" | "byo";
+
+// Models. "@cf/" slugs run on the Workers AI binding; anything else goes to
+// the OpenAI API (OPENAI_API_KEY secret).
+// Probed through workers-ai-provider + streamText (Think's exact path):
+// llama-4-scout round-trips structured tool calls at ~0.5-2.5s/step but
+// occasionally leaks the call as JSON text (salvage guard in user-app.ts);
+// gpt-oss-20b dies reasoning-only on streaming tool turns yet is solid on a
+// single non-streaming generateText call — hence loop vs fallback below.
+// kimi/glm loop correctly but at 35-53s/step, which kills the hot-reload feel.
+export const LOOP_MODEL = "@cf/meta/llama-4-scout-17b-16e-instruct";
+export const FALLBACK_MODEL = "@cf/openai/gpt-oss-20b";
+
+// Whether a model can drive the Think tool loop through the provider bridge.
+// Models not listed default to the single-call CSS path.
+export const MODEL_SUPPORTS_TOOLS: Record<string, boolean> = {
+  [LOOP_MODEL]: true,
+  [FALLBACK_MODEL]: false,
+};
+
+// Per-tier model choice. The BYO tier swaps this entry for the signed-in
+// credential's model (gpt-5.5 or the user's own CF account models).
+export const TIER_MODELS: Record<ModelTier, { loop: string; fallback: string }> = {
+  free: { loop: LOOP_MODEL, fallback: FALLBACK_MODEL },
+  byo: { loop: LOOP_MODEL, fallback: FALLBACK_MODEL },
+};
 
 // Cookie mirroring the localStorage fork id so the worker can route a visitor
 // to their own ephemeral fork Durable Object.
 export const FORK_COOKIE = "remix_fork";
 
-// Workspace layout inside each fork's Durable Object.
+// Workspace layout inside each fork's Durable Object. Page snapshots mirror
+// their routes (/site/pages/work/index.html serves /work/) so serving,
+// previews, and future full-tier snapshots share one path rule.
 export const ROOT = "/site";
 export const THEME_FILE = "/site/theme.css";
+export const PAGES_DIR = "/site/pages";
+export const FORK_JS_FILE = "/site/fork.js";
 
 // Real prerendered pages snapshotted into the workspace at fork time so the
 // agent writes selectors against the actual markup.
-export const SNAPSHOT_PAGES: Array<[route: string, file: string]> = [
-  ["/index.html", "home.html"],
-  ["/work/index.html", "work.html"],
-  ["/projects/index.html", "projects.html"],
-  ["/blog/index.html", "blog.html"],
+export const SNAPSHOT_ROUTES = [
+  "/index.html",
+  "/work/index.html",
+  "/projects/index.html",
+  "/blog/index.html",
 ];
+
+// Paths the agent's write/edit tools may touch, per tier. Entries ending in
+// "/" are prefixes, everything else is an exact path. The free tier is
+// CSS-only — the architectural content lock; the full tier is a flag-flip.
+export const WRITE_ALLOWLIST: Record<ModelTier, readonly string[]> = {
+  free: [THEME_FILE],
+  byo: [`${ROOT}/`],
+};
+
+export function isWriteAllowed(path: string, tier: ModelTier): boolean {
+  const p = path.startsWith("/") ? path : `/${path}`;
+  if (p.includes("..")) return false;
+  return WRITE_ALLOWLIST[tier].some((rule) =>
+    rule.endsWith("/") ? p.startsWith(rule) : p === rule,
+  );
+}
 
 export const SEED_THEME = `/* Your remix of mattzcarey.com.
  * This stylesheet is injected on every page AFTER the site's own CSS,
  * so rules here override the defaults. The HTML never changes — only style. */
 `;
 
-// System prompt for the single-call restyle. The content lock is architectural:
-// the only thing the model produces is CSS, so it cannot change markup or
-// content no matter what it writes.
-export const AGENT_SYSTEM = [
+// Styling knowledge shared by both agent paths.
+const STYLE_BRIEF = [
   "You are an expert CSS artist restyling Matt Carey's personal website",
   "(mattzcarey.com). The user describes a look — a vibe, a theme, a layout",
   "tweak — and you deliver it with CSS alone.",
   "",
-  "You output the COMPLETE new stylesheet (not a diff). It is injected on every",
-  "page AFTER the site's own Tailwind CSS, so your rules cascade over the",
-  "defaults; prefer element/structural selectors (body, h1, main, aside, nav a)",
-  "over exact utility-class strings, and use !important when a Tailwind utility",
-  "wins the cascade. The user's message includes the current theme CSS and the",
-  "real page markup — build on the current theme when the request is an",
-  "adjustment, replace it when the request is a new look.",
+  "The stylesheet is injected on every page AFTER the site's own Tailwind CSS,",
+  "so your rules cascade over the defaults; prefer element/structural selectors",
+  "(body, h1, main, aside, nav a) over exact utility-class strings, and use",
+  "!important when a Tailwind utility wins the cascade. Build on the current",
+  "theme when the request is an adjustment, replace it when the request is a",
+  "new look.",
   "",
   "Site notes: light mode is white/black, dark mode (prefers-color-scheme) is",
   "#111010/white; headings use 'Kaisei Tokumin' serif via --font-kaisei. If you",
   "set backgrounds, set text colors for BOTH modes, and keep text readable.",
   "",
   "RULES:",
-  "  1. Output ONLY CSS. No prose, no markdown fences, no HTML.",
-  "  2. Do not hide the site's content and do not use `content:` to reword it.",
-  "  3. Do not hide or move #remix-widget (the floating remix widget).",
-  "  4. External URLs: only Google Fonts (@import url('https://fonts.googleapis.com/...'))",
+  "  1. Do not hide the site's content and do not use `content:` to reword it.",
+  "  2. Do not hide or move #remix-widget (the floating remix widget).",
+  "  3. External URLs: only Google Fonts (@import url('https://fonts.googleapis.com/...'))",
   "     is allowed. No other external resources.",
-  "  5. Deliver a complete, coherent theme: colors, typography, spacing, and at",
+  "  4. Deliver a complete, coherent theme: colors, typography, spacing, and at",
   "     least one delightful touch (a hover, a transition, an animation).",
+].join("\n");
+
+// System prompt for the single-call restyle path (no tools). The content lock
+// is architectural: the only thing the model produces is CSS.
+export const AGENT_SYSTEM = [
+  STYLE_BRIEF,
+  "",
+  "You output the COMPLETE new stylesheet (not a diff). Output ONLY CSS —",
+  "no prose, no markdown fences, no HTML. The user's message includes the",
+  "current theme CSS and the real page markup.",
+].join("\n");
+
+// System prompt for the tool-loop path. The agent works in a workspace and
+// applies its restyle by writing the theme file; every write hot-reloads on
+// the visitor's screen.
+export const AGENT_LOOP_SYSTEM = [
+  STYLE_BRIEF,
+  "",
+  "You work in a workspace:",
+  `  ${THEME_FILE} — your stylesheet (the only file you may write).`,
+  `  ${PAGES_DIR}/... — read-only snapshots of the real page markup.`,
+  "",
+  "WORKFLOW (call exactly ONE tool per step and wait for its result — never",
+  "guess file contents, never combine a read and a write in the same step):",
+  `  1. read ${THEME_FILE} to see the current theme.`,
+  `  2. read one page snapshot (start with ${PAGES_DIR}/index.html) to see the`,
+  "     markup you are styling.",
+  `  3. write the COMPLETE new stylesheet to ${THEME_FILE} — full file content,`,
+  "     not a diff.",
+  "  4. reply with one short sentence describing the look. No CSS in the reply.",
+  "",
+  "Always invoke tools through the tool-calling mechanism. NEVER print a tool",
+  "call, JSON, or file content as your text reply.",
+].join("\n");
+
+// Prompt section for the BYO (full-edit) tier: the browser-module contract
+// fork.js must follow so hot reload can dispose and re-import it. Unused on
+// the free tier; the BYO wiring appends it to the loop system prompt.
+export const FORK_JS_CONTRACT = [
+  `${FORK_JS_FILE} is a single plain browser ES module (no imports, or`,
+  "https://esm.sh imports only). It must be idempotent and set",
+  "window.__remixApp = { dispose } so a newer version can tear it down and",
+  "hot-swap in place; without dispose, changes only apply on reload.",
 ].join("\n");
