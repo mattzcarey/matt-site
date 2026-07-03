@@ -23,10 +23,13 @@ forked visitor   -> getServed(path): ASSETS by default, the fork's workspace
 /remix           -> 301 to / (the old studio page is gone)
 ```
 
-- **Free tier's content lock is architectural.** The agent's write tools are
-  allowlisted to `theme.css` and the single-call fallback has no tools at all;
-  the HTML never passes through a model. (Caveat: CSS can still hide or
-  pseudo-element-decorate text — it's a playground, not a security boundary.)
+- **Every tier can edit everything.** Write tools are allowlisted to the
+  fork's `/site/` workspace; tiers differ only in model and billing. Page
+  files are a **copy-on-read** mirror of the live site: they materialize from
+  the static assets the first time the agent reads or edits them, so there is
+  no snapshot tool and no fork-time page seeding — first touch always gets
+  fresh markup. Reverting to a version without a page evicts its copy and
+  serving falls back to the real site.
 - **Hot reload.** The tool loop streams workspace change events over SSE: CSS
   rides the stream inline and repaints instantly; HTML notifies and the client
   fetches the preview and morphs the live DOM (idiomorph-lite, widget/script
@@ -75,14 +78,13 @@ single-call fallback (request + current theme + real page markup → complete
 new stylesheet), capped at 120s. Three tiers:
 
 - **ChatGPT** — device-code sign-in against the public Codex client; restyles
-  run on `chatgpt.com/backend-api/codex` and spend the user's plan quota. This
-  tier gets the full agent: the write allowlist opens to `/site/` (page edits +
-  fork.js). Experimental: the model slug + `OpenAI-Beta` header in `config.ts`
-  are best guesses pending a manual curl with a real token.
+  run on `chatgpt.com/backend-api/codex` and spend the user's plan quota.
+  Experimental: the model slug + `OpenAI-Beta` header in `config.ts` are best
+  guesses pending a manual curl with a real token.
 - **Cloudflare** — auth-code + PKCE against `dash.cloudflare.com/oauth2/*`
   (self-serve OAuth client; `CF_OAUTH_CLIENT_SECRET` wrangler secret);
   restyles run over the Workers AI REST API billed to the user's account, same
-  loop/fallback models as the free tier. Also opens the `/site/` allowlist.
+  loop/fallback models as the free tier.
 - **Free** — the default: `@cf/meta/llama-4-scout-17b-16e-instruct` drives the
   loop (with a text-leak salvage guard); `@cf/openai/gpt-oss-20b` is the
   single-call fallback. Capped at 10 restyles per fork per day. `@cf/` slugs

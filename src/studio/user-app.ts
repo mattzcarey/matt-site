@@ -4,12 +4,13 @@
 // pages copy-on-write: ASSETS by default, workspace-shadowed paths for edited
 // pages, committed theme CSS injected at serve time.
 //
-// Free tier: the content lock is architectural — write access is
-// tool-allowlisted to theme.css, and the single-call fallback has no tools at
-// all. The BYO tier (a valid auth record in this DO plus the grant cookie —
-// see PLANS/byo-auth.md) opens the write allowlist and runs on the visitor's
-// own ChatGPT or Cloudflare credential; tokens live only here, never in
-// cookies or the browser.
+// Every tier has the same capabilities; tiers only pick the model and who
+// pays. Page files are a copy-on-read mirror of the live site: they
+// materialize from ASSETS the first time the agent reads or edits them (see
+// beforeToolCall). The BYO tier (a valid auth record in this DO plus the
+// grant cookie — see PLANS/byo-auth.md) runs on the visitor's own ChatGPT or
+// Cloudflare credential; tokens live only here, never in cookies or the
+// browser.
 
 import {
   Think,
@@ -24,7 +25,6 @@ import { z } from "zod";
 import { type AuthRecord, refreshAuthRecord } from "./auth";
 import {
   AGENT_LOOP_SYSTEM,
-  AGENT_LOOP_SYSTEM_BYO,
   AGENT_SYSTEM,
   FORK_JS_CONTRACT,
   FORK_JS_FILE,
@@ -33,7 +33,6 @@ import {
   PAGES_DIR,
   ROOT,
   SEED_THEME,
-  SNAPSHOT_ROUTES,
   THEME_FILE,
   TIER_MODELS,
   WRITE_ALLOWLIST,
@@ -186,8 +185,7 @@ export class UserApp extends Think<Env> {
     return this.getModelFor(this.tier());
   }
   override getSystemPrompt() {
-    if (this.tier() === "byo") return `${AGENT_LOOP_SYSTEM_BYO}\n\n${FORK_JS_CONTRACT}`;
-    return AGENT_LOOP_SYSTEM;
+    return `${AGENT_LOOP_SYSTEM}\n\n${FORK_JS_CONTRACT}`;
   }
   // Without explicit headroom the Workers AI default output cap (~256 tokens)
   // truncates the write tool's args mid-stylesheet. chat() options don't carry
@@ -202,12 +200,9 @@ export class UserApp extends Think<Env> {
     if (tier === "byo" && this.turnAuth?.provider === "chatgpt") return true;
     return MODEL_SUPPORTS_TOOLS[TIER_MODELS[tier].loop] === true;
   }
-  // Whether a turn produced work: the free tier only ever writes the theme
-  // file; the byo tier's write allowlist is the whole workspace, so any
-  // changed file counts — a pages/fork.js-only turn is a success, not a
-  // text-leak to retry or a reason to burn the single-call fallback.
-  private turnProduced(turn: ActiveTurn, tier: ModelTier): boolean {
-    return tier === "byo" ? turn.changed.size > 0 : turn.changed.has(THEME_FILE);
+  // Whether a turn produced work: any changed workspace file counts.
+  private turnProduced(turn: ActiveTurn): boolean {
+    return turn.changed.size > 0;
   }
 
   // ── auth (BYO model, see PLANS/byo-auth.md) ─────────────────────────
@@ -308,39 +303,41 @@ export class UserApp extends Think<Env> {
         },
       }),
     };
-    if (this.tier() === "byo") {
-      tools.snapshot_page = tool({
-        description:
-          'Copy a live page of the site into the workspace so it can be edited. Pass the route, e.g. "/blog/".',
-        inputSchema: z.object({ route: z.string().describe("Page route, e.g. /work/") }),
-        execute: async ({ route }) => {
-          const ok = await this.snapshotRoute(normalizeRoute(route));
-          return ok
-            ? { snapshotted: `${PAGES_DIR}${normalizeRoute(route)}` }
-            : { error: "No such page on the live site." };
-        },
-      });
-    }
     return tools;
   }
 
-  override beforeToolCall(ctx: ToolCallContext): ToolCallDecision | void {
-    if (ctx.toolName !== "write" && ctx.toolName !== "edit" && ctx.toolName !== "delete") return;
-    const tier = this.tier();
+  override async beforeToolCall(ctx: ToolCallContext): Promise<ToolCallDecision | void> {
     const input = ctx.input as { path?: unknown } | undefined;
     const path = typeof input?.path === "string" ? input.path : "";
-    if (ctx.toolName === "delete" && tier === "free") {
-      return {
-        action: "block",
-        reason: "Deleting files is disabled. Overwrite the theme with write instead.",
-      };
+    if (ctx.toolName === "write" || ctx.toolName === "edit" || ctx.toolName === "delete") {
+      if (!isWriteAllowed(path)) {
+        return {
+          action: "block",
+          reason: `Write access is limited to: ${WRITE_ALLOWLIST.join(", ")}. Read tools may use any workspace path.`,
+        };
+      }
     }
-    if (!isWriteAllowed(path, tier)) {
-      return {
-        action: "block",
-        reason: `Write access is limited to: ${WRITE_ALLOWLIST[tier].join(", ")}. Read tools may use any workspace path.`,
-      };
+    // Copy-on-read: a live page materializes into the workspace the first
+    // time the agent reads or edits its file.
+    if (ctx.toolName === "read" || ctx.toolName === "edit") {
+      await this.materializePage(path);
     }
+  }
+
+  // Map a workspace page path to its live route; null for non-page paths.
+  private pageRouteFor(path: string): string | null {
+    const p = path.startsWith("/") ? path : `/${path}`;
+    if (!p.startsWith(`${PAGES_DIR}/`) || p.includes("..")) return null;
+    return normalizeRoute(p.slice(PAGES_DIR.length));
+  }
+
+  private async materializePage(path: string): Promise<void> {
+    const route = this.pageRouteFor(path);
+    if (!route) return;
+    const target = `${PAGES_DIR}${route}`;
+    const existing = await this.workspace.readFile(target).catch(() => null);
+    if (existing !== null) return;
+    await this.snapshotRoute(route);
   }
 
   // ── lifecycle ───────────────────────────────────────────────────────
@@ -360,9 +357,6 @@ export class UserApp extends Think<Env> {
         await this.ctx.storage.delete("versions"); // pre-v3 single-css history
         // Snapshot the real prerendered pages so the agent can read the actual
         // markup it is styling.
-        for (const route of SNAPSHOT_ROUTES) {
-          await this.snapshotRoute(route);
-        }
         await this.workspace.writeFile(THEME_FILE, SEED_THEME);
         await seedOriginalVersion(this.ctx.storage, this.workspace);
         await this.ctx.storage.put("seedVersion", UserApp.SEED_VERSION);
@@ -489,7 +483,7 @@ export class UserApp extends Think<Env> {
       if (this.supportsLoop(tier)) {
         looped = await this.runToolLoop(prompt, turn, tier, signal);
       }
-      if (!looped && !this.turnProduced(turn, tier)) {
+      if (!looped && !this.turnProduced(turn)) {
         send({ kind: "status", text: "Designing your theme..." });
         await this.runSingleCall(prompt, turn, tier, signal);
       }
@@ -653,7 +647,7 @@ export class UserApp extends Think<Env> {
       const call = salvageToolWrite(leakedText);
       if (!call) return false;
       const path = call.path.startsWith("/") ? call.path : `/${call.path}`;
-      if (!isWriteAllowed(path, tier)) return false;
+      if (!isWriteAllowed(path)) return false;
       await this.workspace.writeFile(path, call.content);
       return true;
     };
@@ -661,12 +655,12 @@ export class UserApp extends Think<Env> {
     // Output-token headroom rides beforeTurn() — ChatOptions has no
     // maxOutputTokens field.
     const chatConfig = { signal };
-    await this.chat(this.buildLoopPrompt(prompt, tier), callback, chatConfig);
+    await this.chat(this.buildLoopPrompt(prompt), callback, chatConfig);
     if (signal.aborted) throw new Error("timeout");
     // Surface a credential failure so the caller can degrade the tier
     // instead of burning the fallback call on a dead token.
     if (chatError && tier === "byo" && isAuthFailure(chatError)) throw new Error(chatError);
-    if (this.turnProduced(turn, tier)) return true;
+    if (this.turnProduced(turn)) return true;
     if (chatError) return false; // degrade to the single-call path
     if (await salvage()) return true;
 
@@ -674,35 +668,24 @@ export class UserApp extends Think<Env> {
     turn.send({ kind: "status", text: "One more pass..." });
     leakedText = "";
     await this.chat(
-      tier === "byo"
-        ? "Your last reply printed the tool call as text instead of invoking it — nothing was written. Invoke the tool for real now through the tool-calling mechanism, then finish with one short sentence. Do not print JSON."
-        : `Your last reply printed the tool call as text instead of invoking it — nothing was written. Call the write tool now with path ${THEME_FILE} and the complete stylesheet as content. Do not print JSON.`,
+      "Your last reply printed the tool call as text instead of invoking it — nothing was written. Invoke the tool for real now through the tool-calling mechanism, then finish with one short sentence. Do not print JSON.",
       callback,
       chatConfig,
     );
     if (signal.aborted) throw new Error("timeout");
-    if (this.turnProduced(turn, tier)) return true;
+    if (this.turnProduced(turn)) return true;
     return salvage();
   }
 
-  private buildLoopPrompt(request: string, tier: ModelTier): string {
-    if (tier === "byo") {
-      return [
-        `REQUEST: ${request}`,
-        "",
-        "Make this change now: read the files involved, then write your edits —",
-        `${THEME_FILE} for styling, page HTML under ${PAGES_DIR} for structure`,
-        `and content (snapshot_page a route not in the workspace yet), and`,
-        `${FORK_JS_FILE} for behavior. One tool call per step. Finish with one`,
-        "short sentence describing the change.",
-      ].join("\n");
-    }
+  private buildLoopPrompt(request: string): string {
     return [
       `REQUEST: ${request}`,
       "",
-      `Restyle the site now: read ${THEME_FILE}, read ${PAGES_DIR}/index.html,`,
-      `then write the COMPLETE new stylesheet to ${THEME_FILE}. One tool call per`,
-      "step. Finish with one short sentence describing the look.",
+      "Make this change now: read the files involved, then write your edits —",
+      `${THEME_FILE} for styling, page HTML under ${PAGES_DIR} for structure`,
+      "and content (a route's page file materializes the first time you read",
+      `it), and ${FORK_JS_FILE} for behavior. One tool call per step. Finish`,
+      "with one short sentence describing the change.",
     ].join("\n");
   }
 
@@ -746,6 +729,7 @@ export class UserApp extends Think<Env> {
   private async buildSingleCallPrompt(request: string, currentTheme: string): Promise<string> {
     const pages: string[] = [];
     for (const route of ["/index.html", "/work/index.html"]) {
+      await this.materializePage(`${PAGES_DIR}${route}`);
       const raw = await this.workspace.readFile(`${PAGES_DIR}${route}`).catch(() => null);
       if (!raw) continue;
       const cleaned = raw

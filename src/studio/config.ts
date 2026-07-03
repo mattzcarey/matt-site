@@ -89,20 +89,15 @@ export const SNAPSHOT_ROUTES = [
   "/blog/index.html",
 ];
 
-// Paths the agent's write/edit tools may touch, per tier. Entries ending in
-// "/" are prefixes, everything else is an exact path. The free tier is
-// CSS-only — the architectural content lock; the full tier is a flag-flip.
-export const WRITE_ALLOWLIST: Record<ModelTier, readonly string[]> = {
-  free: [THEME_FILE],
-  byo: [`${ROOT}/`],
-};
+// Paths the agent's write/edit tools may touch (same for every tier —
+// capabilities are identical; tiers only decide the model and who pays).
+// Entries ending in "/" are prefixes.
+export const WRITE_ALLOWLIST: readonly string[] = [`${ROOT}/`];
 
-export function isWriteAllowed(path: string, tier: ModelTier): boolean {
+export function isWriteAllowed(path: string): boolean {
   const p = path.startsWith("/") ? path : `/${path}`;
   if (p.includes("..")) return false;
-  return WRITE_ALLOWLIST[tier].some((rule) =>
-    rule.endsWith("/") ? p.startsWith(rule) : p === rule,
-  );
+  return WRITE_ALLOWLIST.some((rule) => (rule.endsWith("/") ? p.startsWith(rule) : p === rule));
 }
 
 export const SEED_THEME = `/* Your remix of mattzcarey.com.
@@ -150,29 +145,6 @@ export const AGENT_SYSTEM = [
 // workspace and applies its restyle by writing the theme file; every write
 // hot-reloads on the visitor's screen.
 export const AGENT_LOOP_SYSTEM = [
-  STYLE_BRIEF,
-  "",
-  "You work in a workspace:",
-  `  ${THEME_FILE} — your stylesheet (the only file you may write).`,
-  `  ${PAGES_DIR}/... — read-only snapshots of the real page markup.`,
-  "",
-  "WORKFLOW (call exactly ONE tool per step and wait for its result — never",
-  "guess file contents, never combine a read and a write in the same step):",
-  `  1. read ${THEME_FILE} to see the current theme.`,
-  `  2. read one page snapshot (start with ${PAGES_DIR}/index.html) to see the`,
-  "     markup you are styling.",
-  `  3. write the COMPLETE new stylesheet to ${THEME_FILE} — full file content,`,
-  "     not a diff.",
-  "  4. reply with one short sentence describing the look. No CSS in the reply.",
-  "",
-  "Always invoke tools through the tool-calling mechanism. NEVER print a tool",
-  "call, JSON, or file content as your text reply.",
-].join("\n");
-
-// System prompt for the BYO (full-edit) tool-loop tier: the whole workspace
-// is writable — theme CSS, page HTML, and the fork.js browser module.
-// getSystemPrompt appends FORK_JS_CONTRACT below it.
-export const AGENT_LOOP_SYSTEM_BYO = [
   "You are an expert designer-developer remixing Matt Carey's personal website",
   "(mattzcarey.com). The user describes a change — a look, a layout tweak, new",
   "content or behavior — and you make it by editing the workspace.",
@@ -182,8 +154,9 @@ export const AGENT_LOOP_SYSTEM_BYO = [
   "    site's own Tailwind CSS, so its rules cascade over the defaults; prefer",
   "    element/structural selectors and use !important when a utility wins.",
   `  ${PAGES_DIR}/... — editable copies of the real pages, mirroring routes`,
-  `    (${PAGES_DIR}/work/index.html serves /work/). Use the snapshot_page tool`,
-  "    to copy a live route into the workspace before editing it.",
+  `    (${PAGES_DIR}/work/index.html serves /work/). Any live route can be`,
+  "    edited: its page file materializes automatically the first time you",
+  "    read or edit it, even if a directory listing doesn't show it yet.",
   `  ${FORK_JS_FILE} — an optional browser module loaded on every page, for`,
   "    interactive behavior.",
   "",
@@ -208,9 +181,8 @@ export const AGENT_LOOP_SYSTEM_BYO = [
   "call, JSON, or file content as your text reply.",
 ].join("\n");
 
-// Prompt section for the BYO (full-edit) tier: the browser-module contract
-// fork.js must follow so hot reload can dispose and re-import it. Unused on
-// the free tier; getSystemPrompt appends it to the loop system prompt.
+// The browser-module contract fork.js must follow so hot reload can dispose
+// and re-import it; getSystemPrompt appends it to the loop system prompt.
 export const FORK_JS_CONTRACT = [
   `${FORK_JS_FILE} is a single plain browser ES module (no imports, or`,
   "https://esm.sh imports only). It must be idempotent and set",
