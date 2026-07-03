@@ -1,6 +1,4 @@
-FROM node:22-alpine
-
-WORKDIR /app
-COPY server.mjs /app/server.mjs
+FROM python:3.13-alpine
+COPY server.py /app/server.py
 EXPOSE 8080
-CMD ["node", "/app/server.mjs"]
+CMD ["python3", "/app/server.py"]
