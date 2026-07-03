@@ -7,8 +7,9 @@ PATH = "/backend-api/codex/responses"
 DROP = {
     "connection", "content-length", "host", "transfer-encoding",
     "cf-connecting-ip", "cf-ew-via", "cf-ipcountry", "cf-ray",
-    "cf-visitor", "cf-worker", "cdn-loop", "x-forwarded-proto",
+    "cf-visitor", "cf-worker", "cdn-loop", "x-forwarded-proto", "user-agent",
 }
+CODEX_USER_AGENT = "codex_cli_rs/0.142.0 (Linux; x86_64) reqwest"
 
 class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
@@ -21,6 +22,7 @@ class Handler(BaseHTTPRequestHandler):
         for name, value in self.headers.items():
             if name.lower() not in DROP:
                 request.add_header(name, value)
+        request.add_header("User-Agent", CODEX_USER_AGENT)
 
         try:
             with urlopen(request, timeout=600) as upstream:
@@ -30,6 +32,10 @@ class Handler(BaseHTTPRequestHandler):
         except Exception as error:
             print(f"Codex egress failed: {error}", flush=True)
             status, data, headers = 502, json.dumps({"error": "Codex egress failed"}).encode(), {}
+
+        if status >= 400:
+            sample = data[:200].decode(errors="replace").replace("\n", " ")
+            print(f"Codex upstream {status}: {sample}", flush=True)
 
         self.send_response(status)
         content_type = headers.get("content-type") if headers else None
