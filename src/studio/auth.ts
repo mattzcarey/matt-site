@@ -1,30 +1,7 @@
-// BYO-model auth for the remix studio (see PLANS/byo-auth.md).
-//
-// Two sign-in tiers on top of the free one:
-//   - Cloudflare: standard auth-code + PKCE against dash.cloudflare.com via a
-//     self-serve public OAuth client; restyles bill the user's Workers AI.
-//   - ChatGPT: device-code flow against auth.openai.com imitating the public
-//     Codex client; restyles spend the user's ChatGPT plan quota.
-//
-// Tokens live only in the visitor's UserApp Durable Object — never in cookies,
-// never in the browser. In-flight OAuth state rides short-lived HMAC-signed
-// cookies; a successful sign-in also sets the HttpOnly `remix_auth` grant
-// cookie so a leaked localStorage fork id alone cannot spend tokens.
+// OAuth tokens stay in the visitor's UserApp Durable Object. Only short-lived
+// transaction cookies and a fork-bound grant cookie reach the browser.
 
 import { getAgentByName } from "agents";
-import {
-  AUTH_COOKIE,
-  CF_API_BASE,
-  CF_OAUTH_AUTHORIZE_URL,
-  CF_OAUTH_CLIENT_ID,
-  CF_OAUTH_REDIRECT_URI,
-  CF_OAUTH_REVOKE_URL,
-  CF_OAUTH_SCOPES,
-  CF_OAUTH_TOKEN_URL,
-  CHATGPT_VERIFY_URL,
-  CODEX_CLIENT_ID,
-  OPENAI_ISSUER,
-} from "./config";
 import {
   b64urlToBytes,
   clearCookie,
@@ -78,6 +55,17 @@ interface GrantCookie {
   iat: number;
 }
 
+const AUTH_COOKIE = "remix_auth";
+const CF_OAUTH_CLIENT_ID = "475794bcb17db3c3e4bef4a2070923e8";
+const CF_OAUTH_AUTHORIZE_URL = "https://dash.cloudflare.com/oauth2/auth";
+const CF_OAUTH_TOKEN_URL = "https://dash.cloudflare.com/oauth2/token";
+const CF_OAUTH_REVOKE_URL = "https://dash.cloudflare.com/oauth2/revoke";
+const CF_OAUTH_REDIRECT_URI = "https://mattzcarey.com/oauth/cloudflare/callback";
+const CF_OAUTH_SCOPES = "ai.write account-settings.read offline_access";
+const CF_API_BASE = "https://api.cloudflare.com/client/v4";
+const CODEX_CLIENT_ID = "app_EMoamEEZ73f0CkXaXp7hrann";
+const OPENAI_ISSUER = "https://auth.openai.com";
+const CHATGPT_VERIFY_URL = `${OPENAI_ISSUER}/codex/device`;
 const CF_TX_COOKIE = "rx_oauth_tx";
 // Cookie path covers both /oauth/cloudflare and /oauth/cloudflare/callback.
 const CF_AUTH_PATH = "/oauth/cloudflare";

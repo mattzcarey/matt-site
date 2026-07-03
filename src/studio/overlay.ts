@@ -224,7 +224,7 @@ __RX_HOT__
     var p=($('rx-prompt').value||'').trim(); if(!p) return;
     var gen=$('rx-gen'); gen.disabled=true; setStatus('Starting...');
     rxBeginTurn();
-    fetch('/api/remix/agent',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({prompt:p})})
+    fetch('/api/remix/agent',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({prompt:p,route:location.pathname})})
       .then(function(resp){
         if(!resp.body){ throw new Error('no stream'); }
         var reader=resp.body.getReader(); var dec=new TextDecoder(); var buf='';

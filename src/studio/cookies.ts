@@ -4,8 +4,7 @@
 // in-flight transaction cookies and paid-tier grant cookies — signed-in
 // sessions live in the fork's Durable Object, not in cookies.
 
-import { FORK_COOKIE } from "./config";
-
+const FORK_COOKIE = "remix_fork";
 const enc = new TextEncoder();
 
 export function getCookie(request: Request, name: string): string | null {

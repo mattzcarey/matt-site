@@ -4,13 +4,8 @@
 // pages copy-on-write: ASSETS by default, workspace-shadowed paths for edited
 // pages, committed theme CSS injected at serve time.
 //
-// Every tier has the same capabilities; tiers only pick the model and who
-// pays. Page files are a copy-on-read mirror of the live site: they
-// materialize from ASSETS the first time the agent reads or edits them (see
-// beforeToolCall). The BYO tier (a valid auth record in this DO plus the
-// grant cookie — see PLANS/byo-auth.md) runs on the visitor's own ChatGPT or
-// Cloudflare credential; tokens live only here, never in cookies or the
-// browser.
+// Page files are a copy-on-read mirror of ASSETS. An optional fork-bound auth
+// grant selects Cloudflare or ChatGPT; tokens stay in this Durable Object.
 
 import {
   Think,
@@ -20,24 +15,16 @@ import {
   type ToolCallDecision,
   type TurnConfig,
 } from "@cloudflare/think";
-import { generateText, tool, type LanguageModel, type ToolSet } from "ai";
-import { z } from "zod";
 import { type AuthRecord, refreshAuthRecord } from "./auth";
 import {
-  AGENT_LOOP_SYSTEM,
   AGENT_SYSTEM,
-  FORK_JS_CONTRACT,
   FORK_JS_FILE,
   FREE_RESTYLES_PER_DAY,
-  MODEL_SUPPORTS_TOOLS,
   PAGES_DIR,
   ROOT,
   SEED_THEME,
   THEME_FILE,
-  TIER_MODELS,
-  WRITE_ALLOWLIST,
   isWriteAllowed,
-  type ModelTier,
 } from "./config";
 import { modelFor } from "./models";
 import { normalizeRoute, type ServedPage } from "./serving";
@@ -45,7 +32,6 @@ import {
   ORIGINAL_ID,
   commitVersion,
   currentManifest,
-  currentVersionId,
   getManifest,
   listVersions,
   manifestFile,
@@ -89,71 +75,18 @@ interface ActiveTurn {
   /** Gates change events: seeding/rollback writes must not emit. */
   live: boolean;
   seq: number;
+  /** Files actually changed by the model. */
   changed: Set<string>;
+  /** Depth of copy-on-read context preparation; its writes are not model work. */
+  preparingWorkspace: number;
   send: (obj: unknown) => void;
   /** Serializes async css-content reads so events stay seq-ordered. */
   queue: Promise<void>;
 }
 
-// Pull usable CSS out of a model reply: unwrap markdown fences, drop anything
-// that could close the injected <style> tag, reject non-CSS.
-function extractCss(text: string): string | null {
-  let out = text.trim();
-  const fence = out.match(/```(?:css)?\s*([\s\S]*?)```/);
-  if (fence) out = fence[1].trim();
-  out = out.replace(/<\/style/gi, "");
-  if (!out.includes("{") || !out.includes("}")) return null;
-  return out;
-}
-
 function isAuthFailure(err: unknown): boolean {
   const status = (err as { statusCode?: number } | null)?.statusCode;
   return status === 401 || /\b401\b|unauthorized/i.test(String(err));
-}
-
-// Scout occasionally leaks a tool call as JSON text (finish "stop", nothing
-// written). If the leak parses to write-tool args, salvage the write.
-function findWriteArgs(value: unknown, depth = 0): { path: string; content: string } | null {
-  if (!value || typeof value !== "object" || depth > 3) return null;
-  if (Array.isArray(value)) {
-    for (const item of value) {
-      const found = findWriteArgs(item, depth + 1);
-      if (found) return found;
-    }
-    return null;
-  }
-  const obj = value as Record<string, unknown>;
-  if (typeof obj.path === "string" && typeof obj.content === "string") {
-    return { path: obj.path, content: obj.content };
-  }
-  for (const key of ["parameters", "arguments", "input", "args"]) {
-    const found = findWriteArgs(obj[key], depth + 1);
-    if (found) return found;
-  }
-  return null;
-}
-
-function salvageToolWrite(text: string): { path: string; content: string } | null {
-  const candidates: unknown[] = [];
-  const tryParse = (raw: string) => {
-    try {
-      candidates.push(JSON.parse(raw));
-    } catch {
-      /* not JSON */
-    }
-  };
-  const trimmed = text.trim();
-  const fence = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/);
-  if (fence) tryParse(fence[1].trim());
-  tryParse(trimmed);
-  const first = trimmed.indexOf("{");
-  const last = trimmed.lastIndexOf("}");
-  if (first !== -1 && last > first) tryParse(trimmed.slice(first, last + 1));
-  for (const candidate of candidates) {
-    const found = findWriteArgs(candidate);
-    if (found && found.content.includes("{") && found.content.includes("}")) return found;
-  }
-  return null;
 }
 
 export class UserApp extends Think<Env> {
@@ -164,28 +97,18 @@ export class UserApp extends Think<Env> {
     onChange: (event) => this.onWorkspaceChange(event),
   });
   workspaceBash = false;
-  chatStreamStallTimeoutMs = 120000;
+  chatStreamStallTimeoutMs = 180_000;
 
   private readyPromise?: Promise<void>;
   private turn?: ActiveTurn;
   private authRefreshPromise?: Promise<AuthRecord | null>;
-  // The turn-scoped credential: set at turn start when the fork holds a valid
-  // auth record AND the router verified the grant cookie; cleared when the
-  // turn ends or degrades to free. tier() keys off it.
   private turnAuth: AuthRecord | null = null;
 
-  // ── model seam ──────────────────────────────────────────────────────
-  tier(): ModelTier {
-    return this.turnAuth ? "byo" : "free";
-  }
-  getModelFor(tier: ModelTier, kind: "loop" | "fallback" = "loop"): LanguageModel {
-    return modelFor(this.env, tier === "byo" ? this.turnAuth : null, TIER_MODELS[tier][kind]);
-  }
   override getModel() {
-    return this.getModelFor(this.tier());
+    return modelFor(this.env, this.turnAuth, this.name);
   }
   override getSystemPrompt() {
-    return `${AGENT_LOOP_SYSTEM}\n\n${FORK_JS_CONTRACT}`;
+    return AGENT_SYSTEM;
   }
   // Without explicit headroom the Workers AI default output cap (~256 tokens)
   // truncates the write tool's args mid-stylesheet. chat() options don't carry
@@ -193,21 +116,7 @@ export class UserApp extends Think<Env> {
   override beforeTurn(): TurnConfig {
     return { maxOutputTokens: 8000 };
   }
-  // Whether this tier's turn can drive the Think tool loop. The ChatGPT tier
-  // has native tool calling; every other tier keys off the provider-bridge
-  // probe results in config.
-  private supportsLoop(tier: ModelTier): boolean {
-    if (tier === "byo" && this.turnAuth?.provider === "chatgpt") return true;
-    return MODEL_SUPPORTS_TOOLS[TIER_MODELS[tier].loop] === true;
-  }
-  // Whether a turn produced work: any changed workspace file counts.
-  private turnProduced(turn: ActiveTurn): boolean {
-    return turn.changed.size > 0;
-  }
-
-  // ── auth (BYO model, see PLANS/byo-auth.md) ─────────────────────────
-  // Tokens live only here; the browser and every API response see just
-  // {provider, label}.
+  // Tokens live only here; responses expose only provider and label.
 
   async setAuth(record: AuthRecord): Promise<void> {
     await this.ctx.storage.put("auth", record);
@@ -280,32 +189,6 @@ export class UserApp extends Think<Env> {
     return true;
   }
 
-  // ── tools ───────────────────────────────────────────────────────────
-  // Workspace read/write/edit/... tools are merged in by Think itself;
-  // beforeToolCall enforces the per-tier write allowlist over them.
-  override getTools(): ToolSet {
-    const tools: ToolSet = {
-      commit: tool({
-        description:
-          "Save the current workspace as a named version in the fork's history. Optional — changes are committed automatically when the turn succeeds.",
-        inputSchema: z.object({
-          message: z.string().describe("Short human-readable label for this version"),
-        }),
-        execute: async ({ message }) => {
-          const manifest = await commitVersion(
-            this.ctx.storage,
-            this.workspace,
-            message.slice(0, 72),
-          );
-          return manifest
-            ? { committed: manifest.id.slice(0, 7) }
-            : { committed: false, reason: "no changes since the last version" };
-        },
-      }),
-    };
-    return tools;
-  }
-
   override async beforeToolCall(ctx: ToolCallContext): Promise<ToolCallDecision | void> {
     const input = ctx.input as { path?: unknown } | undefined;
     const path = typeof input?.path === "string" ? input.path : "";
@@ -313,7 +196,7 @@ export class UserApp extends Think<Env> {
       if (!isWriteAllowed(path)) {
         return {
           action: "block",
-          reason: `Write access is limited to: ${WRITE_ALLOWLIST.join(", ")}. Read tools may use any workspace path.`,
+          reason: `Write access is limited to ${ROOT}/. Read tools may use any workspace path.`,
         };
       }
     }
@@ -337,7 +220,16 @@ export class UserApp extends Think<Env> {
     const target = `${PAGES_DIR}${route}`;
     const existing = await this.workspace.readFile(target).catch(() => null);
     if (existing !== null) return;
-    await this.snapshotRoute(route);
+
+    // Workspace emits a create event for this write. Suppress it as a turn
+    // effect: copying live markup in so the model can read it is not a remix.
+    const turn = this.turn;
+    if (turn) turn.preparingWorkspace++;
+    try {
+      await this.snapshotRoute(route);
+    } finally {
+      if (turn) turn.preparingWorkspace--;
+    }
   }
 
   // ── lifecycle ───────────────────────────────────────────────────────
@@ -382,7 +274,7 @@ export class UserApp extends Think<Env> {
   // ── hot reload: workspace change events ─────────────────────────────
   private onWorkspaceChange(event: { type: "create" | "update" | "delete"; path: string }): void {
     const turn = this.turn;
-    if (!turn || !turn.live || !event.path.startsWith(`${ROOT}/`)) return;
+    if (!turn?.live || turn.preparingWorkspace > 0 || !event.path.startsWith(`${ROOT}/`)) return;
     const seq = ++turn.seq;
     const artifact = artifactFor(event.path);
     turn.changed.add(event.path);
@@ -439,7 +331,7 @@ export class UserApp extends Think<Env> {
   // ── RPC: agentic restyle (SSE stream) ───────────────────────────────
   // allowPaid: the router verified the HttpOnly remix_auth grant cookie, so
   // this caller may spend the signed-in user's tokens.
-  streamAgentEdit(prompt: string, allowPaid = false): ReadableStream {
+  streamAgentEdit(prompt: string, allowPaid = false, route = "/"): ReadableStream {
     const enc = new TextEncoder();
     let controller: ReadableStreamDefaultController<Uint8Array>;
     const stream = new ReadableStream<Uint8Array>({
@@ -468,6 +360,7 @@ export class UserApp extends Think<Env> {
       live: false,
       seq: 0,
       changed: new Set(),
+      preparingWorkspace: 0,
       send,
       queue: Promise.resolve(),
     };
@@ -476,32 +369,17 @@ export class UserApp extends Think<Env> {
     const providerName = (record: AuthRecord) =>
       record.provider === "chatgpt" ? "ChatGPT" : "Cloudflare";
 
-    // One tier's worth of restyling: the tool loop when the tier supports it,
-    // the single-call CSS path otherwise (or when the loop produced nothing).
-    const runTier = async (tier: ModelTier, signal: AbortSignal) => {
-      let looped = false;
-      if (this.supportsLoop(tier)) {
-        looped = await this.runToolLoop(prompt, turn, tier, signal);
-      }
-      if (!looped && !this.turnProduced(turn)) {
-        send({ kind: "status", text: "Designing your theme..." });
-        await this.runSingleCall(prompt, turn, tier, signal);
-      }
-    };
-
     const run = async () => {
       if (busy) {
         send({ kind: "done", error: "A restyle is already running — wait for it to finish." });
         return close();
       }
       const abort = new AbortController();
-      const watchdog = setTimeout(() => abort.abort(), 120_000);
+      const watchdog = setTimeout(() => abort.abort(), 600_000);
       try {
         await this.ensureReady();
 
-        // Resolve the tier. A signed-in fork whose refresh is expired/denied
-        // degrades to the free tier with a status message — the turn still
-        // runs rather than failing.
+        // Expired sign-in falls back to GLM for this turn.
         this.turnAuth = null;
         const record = await this.ctx.storage.get<AuthRecord>("auth");
         if (record && allowPaid) {
@@ -522,15 +400,13 @@ export class UserApp extends Think<Env> {
           return close();
         }
 
-        const baseId = await currentVersionId(this.ctx.storage);
         turn.live = true;
         send({ kind: "status", text: "Reading the site..." });
 
         try {
-          await runTier(this.tier(), abort.signal);
+          await this.runToolLoop(prompt, route, turn, abort.signal);
         } catch (err) {
-          // A revoked/expired credential mid-turn degrades to the free tier
-          // with a status message rather than failing the turn.
+          // A credential revoked mid-turn rolls back, then retries with GLM.
           const failedAuth = this.turnAuth;
           if (!failedAuth || abort.signal.aborted || !isAuthFailure(err)) throw err;
           await this.markAuthExpired();
@@ -538,10 +414,7 @@ export class UserApp extends Think<Env> {
           // quota to degrade onto, the outer catch still reports the expiry.
           if (!(await this.consumeFreeRestyle())) throw err;
           this.turnAuth = null;
-          // The byo attempt may have left partial page/JS edits the CSS-only
-          // free tier cannot repair; restore the committed state first. The
-          // turn stays live so the rollback's change events repaint the tab,
-          // but rollback writes are not production — clear them.
+          // Discard partial writes before retrying with the free model.
           if (turn.changed.size > 0) {
             await rollbackToCurrent(this.ctx.storage, this.workspace);
             turn.changed.clear();
@@ -550,22 +423,14 @@ export class UserApp extends Think<Env> {
             kind: "status",
             text: `Your ${providerName(failedAuth)} session expired — continuing with the free model. Sign in again to restore it.`,
           });
-          await runTier("free", abort.signal);
+          await this.runToolLoop(prompt, route, turn, abort.signal);
         }
         await turn.queue;
 
         this.turn = undefined;
-        let manifest =
-          turn.changed.size > 0
-            ? await commitVersion(this.ctx.storage, this.workspace, prompt.slice(0, 72))
-            : null;
-        if (!manifest) {
-          // The model may have already committed via the commit tool, in which
-          // case the workspace matches current and commitVersion returns null —
-          // still a successful turn.
-          const committed = await currentManifest(this.ctx.storage);
-          if (committed && committed.id !== baseId) manifest = committed;
-        }
+        const manifest = turn.changed.size
+          ? await commitVersion(this.ctx.storage, this.workspace, prompt.slice(0, 72))
+          : null;
         if (manifest) {
           send({
             kind: "done",
@@ -577,7 +442,7 @@ export class UserApp extends Think<Env> {
             },
           });
         } else {
-          send({ kind: "done", error: "That didn't produce a new style. Try rephrasing." });
+          send({ kind: "done", error: "That didn't change the remix. Try rephrasing." });
         }
       } catch (err) {
         // A failed turn must not leave half-written preview state: restore
@@ -614,143 +479,41 @@ export class UserApp extends Think<Env> {
     return stream;
   }
 
-  // The Think tool loop: workspace tools + the write allowlist, streaming
-  // UI chunks through to the SSE consumer. Returns true once the turn
-  // produced work (see turnProduced), directly or via the leak salvage.
   private async runToolLoop(
     prompt: string,
+    route: string,
     turn: ActiveTurn,
-    tier: ModelTier,
-    signal: AbortSignal,
-  ): Promise<boolean> {
-    let leakedText = "";
-    let chatError: string | undefined;
-    const callback: StreamCallback = {
-      onStart: () => {},
-      onEvent: (json: string) => {
-        turn.send({ kind: "event", chunk: json });
-        try {
-          const chunk = JSON.parse(json) as { type?: string; delta?: string };
-          if (chunk.type === "text-delta" && typeof chunk.delta === "string") {
-            leakedText += chunk.delta;
-          }
-        } catch {
-          /* presentation only */
-        }
-      },
-      onDone: () => {},
-      onError: (error: string) => {
-        chatError = error;
-      },
-    };
-    const salvage = async (): Promise<boolean> => {
-      const call = salvageToolWrite(leakedText);
-      if (!call) return false;
-      const path = call.path.startsWith("/") ? call.path : `/${call.path}`;
-      if (!isWriteAllowed(path)) return false;
-      await this.workspace.writeFile(path, call.content);
-      return true;
-    };
-
-    // Output-token headroom rides beforeTurn() — ChatOptions has no
-    // maxOutputTokens field.
-    const chatConfig = { signal };
-    await this.chat(this.buildLoopPrompt(prompt), callback, chatConfig);
-    if (signal.aborted) throw new Error("timeout");
-    // Surface a credential failure so the caller can degrade the tier
-    // instead of burning the fallback call on a dead token.
-    if (chatError && tier === "byo" && isAuthFailure(chatError)) throw new Error(chatError);
-    if (this.turnProduced(turn)) return true;
-    if (chatError) return false; // degrade to the single-call path
-    if (await salvage()) return true;
-
-    // Text-leak turn with nothing to salvage: one corrective retry.
-    turn.send({ kind: "status", text: "One more pass..." });
-    leakedText = "";
-    await this.chat(
-      "Your last reply printed the tool call as text instead of invoking it — nothing was written. Invoke the tool for real now through the tool-calling mechanism, then finish with one short sentence. Do not print JSON.",
-      callback,
-      chatConfig,
-    );
-    if (signal.aborted) throw new Error("timeout");
-    if (this.turnProduced(turn)) return true;
-    return salvage();
-  }
-
-  private buildLoopPrompt(request: string): string {
-    return [
-      `REQUEST: ${request}`,
-      "",
-      "Make this change now: read the files involved, then write your edits —",
-      `${THEME_FILE} for styling, page HTML under ${PAGES_DIR} for structure`,
-      "and content (a route's page file materializes the first time you read",
-      `it), and ${FORK_JS_FILE} for behavior. One tool call per step. Finish`,
-      "with one short sentence describing the change.",
-    ].join("\n");
-  }
-
-  // The single-call CSS path (no tools, non-streaming) — today's shipped
-  // mode, kept as the fallback tier. Writes the theme file on success so the
-  // same change event → hot-reload pipeline applies.
-  private async runSingleCall(
-    prompt: string,
-    turn: ActiveTurn,
-    tier: ModelTier,
     signal: AbortSignal,
   ): Promise<void> {
-    const current = (await this.workspace.readFile(THEME_FILE).catch(() => "")) ?? "";
-    const userPrompt = await this.buildSingleCallPrompt(prompt, current);
-    // Reasoning models (gpt-oss) can spend most of the budget thinking and
-    // return an empty or truncated answer; give headroom and retry once.
-    const attempt = (extra: string) =>
-      generateText({
-        model: this.getModelFor(tier, "fallback"),
-        system: AGENT_SYSTEM,
-        prompt: userPrompt + extra,
-        maxOutputTokens: 8000,
-        abortSignal: signal,
-      }).then((r) => r.text);
+    let error: string | undefined;
+    const callback: StreamCallback = {
+      onStart: () => {},
+      onEvent: (chunk) => turn.send({ kind: "event", chunk }),
+      onDone: () => {},
+      onError: (message) => {
+        error = message;
+      },
+    };
+    const chat = (message: string) => this.chat(message, callback, { signal });
 
-    let css = extractCss(await attempt(""));
-    if (!css) {
-      turn.send({ kind: "status", text: "One more pass..." });
-      css = extractCss(
-        await attempt(
-          "\n\nIMPORTANT: reply with the CSS itself, nothing else. Start with @import or a selector.",
-        ),
-      );
-    }
-    if (!css || css === current.trim()) return;
-    await this.workspace.writeFile(THEME_FILE, css);
+    await chat(this.buildLoopPrompt(prompt, route));
+    if (signal.aborted) throw new Error("timeout");
+    if (error) throw new Error(error);
+    if (turn.changed.size) return;
+
+    turn.send({ kind: "status", text: "One more pass..." });
+    error = undefined;
+    await chat("Nothing changed. Use the write or edit tool now, then finish briefly.");
+    if (signal.aborted) throw new Error("timeout");
+    if (error) throw new Error(error);
   }
 
-  // One user message: the request, the current theme, and the real markup
-  // (page snapshots, minus scripts/styles/svg noise) to write selectors against.
-  private async buildSingleCallPrompt(request: string, currentTheme: string): Promise<string> {
-    const pages: string[] = [];
-    for (const route of ["/index.html", "/work/index.html"]) {
-      await this.materializePage(`${PAGES_DIR}${route}`);
-      const raw = await this.workspace.readFile(`${PAGES_DIR}${route}`).catch(() => null);
-      if (!raw) continue;
-      const cleaned = raw
-        .replace(/<script[\s\S]*?<\/script>/gi, "")
-        .replace(/<style[\s\S]*?<\/style>/gi, "")
-        .replace(/<svg[\s\S]*?<\/svg>/gi, "<svg/>")
-        .replace(/\s+/g, " ")
-        .slice(0, 5000);
-      pages.push(`----- ${route} -----\n${cleaned}`);
-    }
+  private buildLoopPrompt(request: string, route: string): string {
     return [
       `REQUEST: ${request}`,
-      "",
-      "CURRENT THEME CSS (empty = original site):",
-      currentTheme.trim() || "(none)",
-      "",
-      "REAL PAGE MARKUP:",
-      pages.join("\n\n") || "(snapshots unavailable — style body, h1-h3, main, aside, a)",
-      "",
-      "Reply with the complete new stylesheet, CSS only.",
-    ].join("\n");
+      `CURRENT PAGE: ${route} (${PAGES_DIR}${normalizeRoute(route)})`,
+      "Explore and edit the workspace as needed. Continue until the requested remix is complete.",
+    ].join("\n\n");
   }
 
   // ── RPC: revert ─────────────────────────────────────────────────────

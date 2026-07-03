@@ -17,6 +17,7 @@ import { handleAuth } from "./studio/auth";
 import { forkIdFrom, handleRemixAsset, handleStudioApi } from "./studio/router";
 import { applyInvariants } from "./studio/serving";
 
+export { CodexEgress } from "./studio/models";
 export { UserApp } from "./studio/user-app";
 
 export default {

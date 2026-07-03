@@ -80,13 +80,17 @@ export async function handleStudioApi(request: Request, env: Env): Promise<Respo
   }
   const body = (await request.json().catch(() => ({}))) as {
     prompt?: string;
+    route?: string;
     id?: string;
   };
   if (path === "/api/remix/agent" && request.method === "POST") {
     // The paid tiers require the HttpOnly grant cookie set at sign-in, bound
     // to the fork id — a leaked localStorage id alone cannot spend tokens.
     const allowPaid = await hasPaidGrant(request, env, forkId);
-    const stream = await agent.streamAgentEdit(String(body.prompt ?? ""), allowPaid);
+    const requestedRoute = String(body.route ?? "/");
+    const route =
+      requestedRoute.startsWith("/") && !requestedRoute.includes("..") ? requestedRoute : "/";
+    const stream = await agent.streamAgentEdit(String(body.prompt ?? ""), allowPaid, route);
     return new Response(stream, {
       headers: {
         "content-type": "text/event-stream",
