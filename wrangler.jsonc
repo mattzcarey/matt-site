@@ -10,24 +10,13 @@
     "run_worker_first": true,
   },
   "ai": { "binding": "AI" },
-  "containers": [
-    {
-      "class_name": "CodexEgress",
-      "image": "./codex-egress/Dockerfile",
-      "name": "matt-site-codex-egress",
-      "max_instances": 1,
-      "instance_type": "lite",
-    },
-  ],
   "durable_objects": {
-    "bindings": [
-      { "name": "USERAPP", "class_name": "UserApp" },
-      { "name": "CODEX_EGRESS", "class_name": "CodexEgress" },
-    ],
+    "bindings": [{ "name": "USERAPP", "class_name": "UserApp" }],
   },
   "migrations": [
     { "tag": "v1", "new_sqlite_classes": ["UserApp"] },
     { "tag": "v2", "new_sqlite_classes": ["CodexEgress"] },
+    { "tag": "v3", "deleted_classes": ["CodexEgress"] },
   ],
   "observability": {
     "enabled": true,

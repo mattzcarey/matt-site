@@ -4,8 +4,7 @@
 // pages copy-on-write: ASSETS by default, workspace-shadowed paths for edited
 // pages, committed theme CSS injected at serve time.
 //
-// Page files are a copy-on-read mirror of ASSETS. An optional fork-bound auth
-// grant selects Cloudflare or ChatGPT; tokens stay in this Durable Object.
+// Page files are a copy-on-read mirror of ASSETS. Every turn uses GLM-5.2.
 
 import {
   Think,
@@ -15,7 +14,6 @@ import {
   type ToolCallDecision,
   type TurnConfig,
 } from "@cloudflare/think";
-import { type AuthRecord, refreshAuthRecord } from "./auth";
 import {
   AGENT_SYSTEM,
   FORK_JS_FILE,
@@ -42,15 +40,8 @@ import {
   type VersionSummary,
 } from "./versions";
 
-export interface RemixAuthState {
-  provider: "chatgpt" | "cloudflare" | null;
-  label: string | null;
-  expired?: boolean;
-}
-
 export interface RemixState {
   versions: VersionSummary[];
-  auth: RemixAuthState;
   error?: string;
 }
 
@@ -84,11 +75,6 @@ interface ActiveTurn {
   queue: Promise<void>;
 }
 
-function isAuthFailure(err: unknown): boolean {
-  const status = (err as { statusCode?: number } | null)?.statusCode;
-  return status === 401 || /\b401\b|unauthorized/i.test(String(err));
-}
-
 export class UserApp extends Think<Env> {
   override workspace = new Workspace({
     sql: this.ctx.storage.sql,
@@ -101,11 +87,9 @@ export class UserApp extends Think<Env> {
 
   private readyPromise?: Promise<void>;
   private turn?: ActiveTurn;
-  private authRefreshPromise?: Promise<AuthRecord | null>;
-  private turnAuth: AuthRecord | null = null;
 
   override getModel() {
-    return modelFor(this.env, this.turnAuth, this.name);
+    return modelFor(this.env, this.name);
   }
   override getSystemPrompt() {
     return AGENT_SYSTEM;
@@ -116,70 +100,7 @@ export class UserApp extends Think<Env> {
   override beforeTurn(): TurnConfig {
     return { maxOutputTokens: 8000 };
   }
-  // Tokens live only here; responses expose only provider and label.
-
-  async setAuth(record: AuthRecord): Promise<void> {
-    await this.ctx.storage.put("auth", record);
-  }
-
-  // Deletes the record and returns it so the caller can best-effort revoke.
-  async clearAuth(): Promise<AuthRecord | null> {
-    const record = (await this.ctx.storage.get<AuthRecord>("auth")) ?? null;
-    await this.ctx.storage.delete("auth");
-    return record;
-  }
-
-  // Throttle for the ChatGPT device-code poll relay. The signed tx cookie is
-  // client-held (replayable), so the last-poll timestamp must live here.
-  async devicePollGate(minIntervalMs: number): Promise<boolean> {
-    const last = (await this.ctx.storage.get<number>("devicePollAt")) ?? 0;
-    const now = Date.now();
-    if (now - last < minIntervalMs) return false;
-    await this.ctx.storage.put("devicePollAt", now);
-    return true;
-  }
-
-  private async markAuthExpired(): Promise<void> {
-    const record = await this.ctx.storage.get<AuthRecord>("auth");
-    if (record) await this.ctx.storage.put("auth", { ...record, invalid: true });
-  }
-
-  // Returns a usable record (refreshed if near expiry) or null. Both
-  // providers rotate refresh tokens on use, so refresh is single-flight and
-  // the rotated pair is persisted before the promise resolves — concurrent
-  // restyles can't race a single-use refresh token into invalid_grant.
-  private async freshAuth(): Promise<AuthRecord | null> {
-    const record = await this.ctx.storage.get<AuthRecord>("auth");
-    if (!record || record.invalid) return null;
-    if (Date.now() < record.expiresAt - 60_000) return record;
-    if (!this.authRefreshPromise) {
-      this.authRefreshPromise = (async () => {
-        const current = await this.ctx.storage.get<AuthRecord>("auth");
-        if (!current || current.invalid) return null;
-        if (Date.now() < current.expiresAt - 60_000) return current;
-        const rotated = await refreshAuthRecord(this.env, current);
-        if (rotated === "denied") {
-          await this.ctx.storage.put("auth", { ...current, invalid: true });
-          return null;
-        }
-        if (!rotated) return null;
-        await this.ctx.storage.put("auth", rotated);
-        return rotated;
-      })();
-      this.authRefreshPromise.finally(() => {
-        this.authRefreshPromise = undefined;
-      });
-    }
-    return this.authRefreshPromise;
-  }
-
-  private async authState(): Promise<RemixAuthState> {
-    const record = await this.ctx.storage.get<AuthRecord>("auth");
-    if (!record) return { provider: null, label: null };
-    return { provider: record.provider, label: record.label, expired: record.invalid === true };
-  }
-
-  // The free tier bills Matt; cap restyles per fork per day.
+  // Cap Workers AI usage per fork.
   private async consumeFreeRestyle(): Promise<boolean> {
     const today = new Date().toISOString().slice(0, 10);
     const usage = await this.ctx.storage.get<FreeUsage>("freeUsage");
@@ -233,9 +154,8 @@ export class UserApp extends Think<Env> {
   }
 
   // ── lifecycle ───────────────────────────────────────────────────────
-  // Bump when the seed layout changes; forks from older layouts (including
-  // the v2 single-css versions array) are wiped and reseeded.
-  private static readonly SEED_VERSION = 3;
+  // v4 also clears credentials stored by the removed sign-in feature.
+  private static readonly SEED_VERSION = 4;
 
   private async ensureReady(): Promise<void> {
     if (!this.readyPromise) {
@@ -246,7 +166,7 @@ export class UserApp extends Think<Env> {
         await this.workspace.rm(ROOT, { recursive: true }).catch(() => undefined);
         await this.clearMessages().catch(() => undefined);
         await wipeVersions(this.ctx.storage);
-        await this.ctx.storage.delete("versions"); // pre-v3 single-css history
+        await this.ctx.storage.delete(["versions", "auth", "devicePollAt"]);
         // Snapshot the real prerendered pages so the agent can read the actual
         // markup it is styling.
         await this.workspace.writeFile(THEME_FILE, SEED_THEME);
@@ -325,13 +245,11 @@ export class UserApp extends Think<Env> {
   // ── RPC: state ──────────────────────────────────────────────────────
   async remixState(): Promise<RemixState> {
     await this.ensureReady();
-    return { versions: await listVersions(this.ctx.storage), auth: await this.authState() };
+    return { versions: await listVersions(this.ctx.storage) };
   }
 
-  // ── RPC: agentic restyle (SSE stream) ───────────────────────────────
-  // allowPaid: the router verified the HttpOnly remix_auth grant cookie, so
-  // this caller may spend the signed-in user's tokens.
-  streamAgentEdit(prompt: string, allowPaid = false, route = "/"): ReadableStream {
+  // ── RPC: agentic remix (SSE stream) ─────────────────────────────────
+  streamAgentEdit(prompt: string, route = "/"): ReadableStream {
     const enc = new TextEncoder();
     let controller: ReadableStreamDefaultController<Uint8Array>;
     const stream = new ReadableStream<Uint8Array>({
@@ -366,9 +284,6 @@ export class UserApp extends Think<Env> {
     };
     if (!busy) this.turn = turn;
 
-    const providerName = (record: AuthRecord) =>
-      record.provider === "chatgpt" ? "ChatGPT" : "Cloudflare";
-
     const run = async () => {
       if (busy) {
         send({ kind: "done", error: "A restyle is already running — wait for it to finish." });
@@ -379,52 +294,17 @@ export class UserApp extends Think<Env> {
       try {
         await this.ensureReady();
 
-        // Expired sign-in falls back to GLM for this turn.
-        this.turnAuth = null;
-        const record = await this.ctx.storage.get<AuthRecord>("auth");
-        if (record && allowPaid) {
-          this.turnAuth = await this.freshAuth();
-          if (!this.turnAuth) {
-            send({
-              kind: "status",
-              text: `Your ${providerName(record)} session expired — continuing with the free model. Sign in again to restore it.`,
-            });
-          }
-        }
-        if (!this.turnAuth && !(await this.consumeFreeRestyle())) {
+        if (!(await this.consumeFreeRestyle())) {
           send({
             kind: "done",
-            error:
-              "Free restyles are used up for today — sign in with ChatGPT or Cloudflare, or come back tomorrow.",
+            error: "This remix has used its ten changes for today. Come back tomorrow.",
           });
           return close();
         }
 
         turn.live = true;
         send({ kind: "status", text: "Reading the site..." });
-
-        try {
-          await this.runToolLoop(prompt, route, turn, abort.signal);
-        } catch (err) {
-          // A credential revoked mid-turn rolls back, then retries with GLM.
-          const failedAuth = this.turnAuth;
-          if (!failedAuth || abort.signal.aborted || !isAuthFailure(err)) throw err;
-          await this.markAuthExpired();
-          // Keep turnAuth set through the cap check: if there is no free
-          // quota to degrade onto, the outer catch still reports the expiry.
-          if (!(await this.consumeFreeRestyle())) throw err;
-          this.turnAuth = null;
-          // Discard partial writes before retrying with the free model.
-          if (turn.changed.size > 0) {
-            await rollbackToCurrent(this.ctx.storage, this.workspace);
-            turn.changed.clear();
-          }
-          send({
-            kind: "status",
-            text: `Your ${providerName(failedAuth)} session expired — continuing with the free model. Sign in again to restore it.`,
-          });
-          await this.runToolLoop(prompt, route, turn, abort.signal);
-        }
+        await this.runToolLoop(prompt, route, turn, abort.signal);
         await turn.queue;
 
         this.turn = undefined;
@@ -451,27 +331,15 @@ export class UserApp extends Think<Env> {
         const rolledBack = await rollbackToCurrent(this.ctx.storage, this.workspace).catch(
           () => false,
         );
-        if (this.turnAuth && isAuthFailure(err) && !abort.signal.aborted) {
-          await this.markAuthExpired();
-          send({
-            kind: "done",
-            error: `Your ${providerName(this.turnAuth)} session expired — sign in again.`,
-            auth: "expired",
-            rolledBack,
-          });
-        } else {
-          const message = abort.signal.aborted
-            ? "That took too long — please try again."
-            : // A deploy resets live DOs mid-query; the retry lands on fresh code.
-              /code was updated/i.test(String(err))
-              ? "The site was just redeployed — please try again."
-              : String(err instanceof Error ? err.message : err).slice(0, 200);
-          send({ kind: "done", error: message, rolledBack });
-        }
+        const message = abort.signal.aborted
+          ? "That took too long — please try again."
+          : /code was updated/i.test(String(err))
+            ? "The site was just redeployed — please try again."
+            : String(err instanceof Error ? err.message : err).slice(0, 200);
+        send({ kind: "done", error: message, rolledBack });
       } finally {
         clearTimeout(watchdog);
         this.turn = undefined;
-        this.turnAuth = null;
         close();
       }
     };
@@ -524,12 +392,11 @@ export class UserApp extends Think<Env> {
     if (this.turn) {
       return {
         versions: await listVersions(this.ctx.storage),
-        auth: await this.authState(),
-        error: "A restyle is running — wait for it to finish before reverting.",
+        error: "A remix is running — wait for it to finish before reverting.",
       };
     }
     const ok = await materializeVersion(this.ctx.storage, this.workspace, id);
-    if (!ok) return { versions: [], auth: await this.authState(), error: "Version not found." };
+    if (!ok) return { versions: [], error: "Version not found." };
     return this.remixState();
   }
 
@@ -544,7 +411,7 @@ export class UserApp extends Think<Env> {
     await this.workspace.rm(ROOT, { recursive: true }).catch(() => undefined);
     await this.clearMessages().catch(() => undefined);
     await wipeVersions(this.ctx.storage);
-    for (const key of ["versions", "seedVersion", "auth", "freeUsage", "devicePollAt"]) {
+    for (const key of ["versions", "seedVersion", "freeUsage"]) {
       await this.ctx.storage.delete(key);
     }
     this.readyPromise = undefined;

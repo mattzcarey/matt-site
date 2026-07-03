@@ -3,7 +3,6 @@
 // fork's edits onto the real prerendered pages.
 
 import { getAgentByName } from "agents";
-import { hasPaidGrant } from "./auth";
 import { PAGES_DIR, ROOT, THEME_FILE } from "./config";
 import { forkIdFrom } from "./cookies";
 import { normalizeRoute } from "./serving";
@@ -84,13 +83,10 @@ export async function handleStudioApi(request: Request, env: Env): Promise<Respo
     id?: string;
   };
   if (path === "/api/remix/agent" && request.method === "POST") {
-    // The paid tiers require the HttpOnly grant cookie set at sign-in, bound
-    // to the fork id — a leaked localStorage id alone cannot spend tokens.
-    const allowPaid = await hasPaidGrant(request, env, forkId);
     const requestedRoute = String(body.route ?? "/");
     const route =
       requestedRoute.startsWith("/") && !requestedRoute.includes("..") ? requestedRoute : "/";
-    const stream = await agent.streamAgentEdit(String(body.prompt ?? ""), allowPaid, route);
+    const stream = await agent.streamAgentEdit(String(body.prompt ?? ""), route);
     return new Response(stream, {
       headers: {
         "content-type": "text/event-stream",
