@@ -1,7 +1,7 @@
 import type { LanguageModel } from "ai";
 import { createWorkersAI } from "workers-ai-provider";
 
-const MODEL = "@cf/zai-org/glm-5.2";
+const MODEL = "@cf/zai-org/glm-4.7-flash";
 
 export function modelFor(env: Env, sessionAffinity: string): LanguageModel {
   return createWorkersAI({ binding: env.AI })(MODEL, {

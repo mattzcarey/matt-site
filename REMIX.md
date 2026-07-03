@@ -5,11 +5,11 @@ gets a `UserApp` Durable Object containing a Think workspace and
 content-addressed version history.
 
 ```text
-Remix this site → describe a change → UserApp (Think) → GLM-5.2 tools
+Remix this site → describe a change → UserApp (Think) → GLM-4.7-Flash tools
                 → live preview → commit
 ```
 
-The only model is Workers AI `@cf/zai-org/glm-5.2`. There are no account
+The only model is Workers AI `@cf/zai-org/glm-4.7-flash`. There are no account
 sign-ins or third-party credentials.
 
 Pages are copy-on-read: `/site/pages/<route>/index.html` is copied from ASSETS
@@ -27,7 +27,7 @@ committed version. Served remixes are private, uncacheable, and noindexed.
 ## Main modules
 
 - `src/studio/user-app.ts` — Think agent, workspace, live preview and history.
-- `src/studio/models.ts` — GLM-5.2 Workers AI adapter.
+- `src/studio/models.ts` — GLM-4.7-Flash Workers AI adapter.
 - `src/studio/versions.ts` — content-addressed history and materialization.
 - `src/studio/serving.ts` — page overlay and serve-time invariants.
 - `src/studio/overlay.ts` / `hotreload.ts` — floating UI and live updates.

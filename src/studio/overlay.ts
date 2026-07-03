@@ -7,7 +7,7 @@
 // theme CSS (which targets the page) cannot restyle it.
 //
 // The whole flow happens in place: start a remix, describe a change, and watch
-// GLM-5.2 edit the workspace with live hot reload.
+// GLM-4.7-Flash edit the workspace with live hot reload.
 
 import { HOTRELOAD_JS } from "./hotreload";
 
@@ -91,14 +91,14 @@ __RX_HOT__
   document.body.appendChild(host);
   function $(id){ return root.getElementById(id); }
   var open=false;
-  fab.onclick=function(){ open=!open; panel.style.display=open?'block':'none'; if(open) render(); };
+  fab.onclick=function(){ open=!open; panel.style.display=open?'block':'none'; if(open&&!panel.firstChild) render(); };
   function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
   function setStatus(t,err){ var e=$('rx-status'); if(e){ e.textContent=t||''; e.style.color=err?'#dc2626':''; } }
 
   function render(){
     if(!forked()){
       panel.innerHTML='<h3>Remix this site</h3>'
-        +'<p class="muted">Create a private version with GLM-5.2. Only you see the changes.</p>'
+        +'<p class="muted">Create a private version with GLM-4.7-Flash. Only you see the changes.</p>'
         +'<button class="act" id="rx-start">Remix this site</button>';
       $('rx-start').onclick=function(){ setCookie(forkId()); render(); };
       return;
