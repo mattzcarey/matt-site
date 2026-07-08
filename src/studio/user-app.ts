@@ -4,9 +4,7 @@
 // pages copy-on-write: ASSETS by default, workspace-shadowed paths for edited
 // pages, committed theme CSS injected at serve time.
 //
-// Page files are a copy-on-read mirror of ASSETS. Remixing requires signing in
-// with ChatGPT; every turn runs on the visitor's own plan (gpt-5.5, Codex
-// Responses API), billed to them.
+// Page files are a copy-on-read mirror of ASSETS. Every turn uses GLM-5.2.
 
 import {
   Think,
@@ -14,26 +12,18 @@ import {
   type StreamCallback,
   type ToolCallContext,
   type ToolCallDecision,
+  type TurnConfig,
 } from "@cloudflare/think";
 import {
   AGENT_SYSTEM,
   FORK_JS_FILE,
+  FREE_RESTYLES_PER_DAY,
   PAGES_DIR,
   ROOT,
   SEED_THEME,
   THEME_FILE,
   isWriteAllowed,
 } from "./config";
-import {
-  type AuthRecord,
-  CHATGPT_VERIFY_URL,
-  type CodexAuth,
-  type DeviceStart,
-  exchangeDeviceCode,
-  pollDeviceCode,
-  refreshAuthRecord,
-  requestDeviceCode,
-} from "./chatgpt";
 import { modelFor } from "./models";
 import { normalizeRoute, type ServedPage } from "./serving";
 import {
@@ -50,18 +40,14 @@ import {
   type VersionSummary,
 } from "./versions";
 
-export interface RemixAuthState {
-  signedIn: boolean;
-  /** "email · Plan" of the signed-in account. */
-  label?: string;
-  /** The stored session was invalidated; the user must sign in again. */
-  expired?: boolean;
-}
-
 export interface RemixState {
   versions: VersionSummary[];
-  auth: RemixAuthState;
   error?: string;
+}
+
+interface FreeUsage {
+  day: string;
+  count: number;
 }
 
 type Artifact = "css" | "html" | "js" | "file";
@@ -101,118 +87,27 @@ export class UserApp extends Think<Env> {
 
   private readyPromise?: Promise<void>;
   private turn?: ActiveTurn;
-  private authRefreshPromise?: Promise<AuthRecord | null>;
 
   override getModel() {
-    return modelFor(() => this.codexAuth());
+    return modelFor(this.env, this.name);
   }
   override getSystemPrompt() {
     return AGENT_SYSTEM;
   }
-
-  // ── Sign in with ChatGPT ────────────────────────────────────────────
-  // Tokens live only in this DO; responses expose only the display label.
-
-  // Begin the device-code flow: request a user code and stash the pending
-  // device state. The visitor enters the code at CHATGPT_VERIFY_URL.
-  async startAuth(): Promise<
-    { userCode: string; verifyUrl: string; interval: number } | { error: string }
-  > {
-    const started = await requestDeviceCode();
-    if ("error" in started) return started;
-    await this.ctx.storage.put("deviceAuth", started);
-    await this.ctx.storage.delete("devicePollAt");
-    return {
-      userCode: started.userCode,
-      verifyUrl: CHATGPT_VERIFY_URL,
-      interval: started.interval,
-    };
+  // Without explicit headroom the Workers AI default output cap (~256 tokens)
+  // truncates the write tool's args mid-stylesheet. chat() options don't carry
+  // maxOutputTokens — only TurnConfig reaches streamText.
+  override beforeTurn(): TurnConfig {
+    return { maxOutputTokens: 8000 };
   }
-
-  // One poll of the device flow, driven by the widget across requests. On
-  // approval it exchanges the code and stores the session.
-  async pollAuth(): Promise<{
-    status: "pending" | "authorized" | "expired" | "error";
-    auth?: RemixAuthState;
-    error?: string;
-  }> {
-    const device = await this.ctx.storage.get<DeviceStart>("deviceAuth");
-    if (!device) return { status: "error", error: "Sign-in expired — start again." };
-    if (Date.now() > device.expiresAt) {
-      await this.ctx.storage.delete("deviceAuth");
-      return { status: "expired", error: "Sign-in expired — start again." };
-    }
-    // Enforce the upstream poll interval here; the widget's timer can fire
-    // early and OpenAI rate-limits fast polls.
-    if (!(await this.devicePollGate(device.interval * 1000 - 250))) return { status: "pending" };
-
-    const poll = await pollDeviceCode(device.deviceAuthId, device.userCode);
-    if (poll.status === "pending") return { status: "pending" };
-    await this.ctx.storage.delete("deviceAuth");
-    if (poll.status === "error") return { status: "error", error: poll.error };
-
-    const record = await exchangeDeviceCode(poll.code, poll.codeVerifier);
-    if ("error" in record) return { status: "error", error: record.error };
-    await this.ctx.storage.put("auth", record);
-    return { status: "authorized", auth: await this.authState() };
-  }
-
-  async clearAuth(): Promise<{ ok: true }> {
-    await this.ctx.storage.delete(["auth", "deviceAuth", "devicePollAt"]);
-    return { ok: true };
-  }
-
-  // Throttle for the device-code poll relay; the last-poll timestamp lives
-  // here so a scripted caller can't reset it.
-  private async devicePollGate(minIntervalMs: number): Promise<boolean> {
-    const last = (await this.ctx.storage.get<number>("devicePollAt")) ?? 0;
-    const now = Date.now();
-    if (now - last < minIntervalMs) return false;
-    await this.ctx.storage.put("devicePollAt", now);
+  // Cap Workers AI usage per fork.
+  private async consumeFreeRestyle(): Promise<boolean> {
+    const today = new Date().toISOString().slice(0, 10);
+    const usage = await this.ctx.storage.get<FreeUsage>("freeUsage");
+    const count = usage?.day === today ? usage.count : 0;
+    if (count >= FREE_RESTYLES_PER_DAY) return false;
+    await this.ctx.storage.put("freeUsage", { day: today, count: count + 1 });
     return true;
-  }
-
-  private async authState(): Promise<RemixAuthState> {
-    const record = await this.ctx.storage.get<AuthRecord>("auth");
-    if (!record) return { signedIn: false };
-    return { signedIn: !record.invalid, label: record.label, expired: record.invalid === true };
-  }
-
-  // Fresh credentials for a Codex request. Throws (surfaced as an auth error)
-  // when the session is gone, so a turn can report "sign in again".
-  private async codexAuth(): Promise<CodexAuth> {
-    const record = await this.freshAuth();
-    if (!record) throw new Error("ChatGPT session expired — sign in again (401).");
-    return { accessToken: record.accessToken, accountId: record.accountId };
-  }
-
-  // A usable record (refreshed near expiry) or null. The refresh token rotates
-  // on use, so refresh is single-flight and the rotated pair is persisted
-  // before the promise resolves — concurrent turns can't burn a single-use
-  // refresh token into invalid_grant.
-  private async freshAuth(): Promise<AuthRecord | null> {
-    const record = await this.ctx.storage.get<AuthRecord>("auth");
-    if (!record || record.invalid) return null;
-    if (Date.now() < record.expiresAt - 60_000) return record;
-    if (!this.authRefreshPromise) {
-      this.authRefreshPromise = (async () => {
-        const current = await this.ctx.storage.get<AuthRecord>("auth");
-        if (!current || current.invalid) return null;
-        if (Date.now() < current.expiresAt - 60_000) return current;
-        const rotated = await refreshAuthRecord(current);
-        if (rotated === "denied") {
-          await this.ctx.storage.put("auth", { ...current, invalid: true });
-          return null;
-        }
-        if (!rotated) return null;
-        await this.ctx.storage.put("auth", rotated);
-        return rotated;
-      })();
-      this.authRefreshPromise.finally(() => {
-        this.authRefreshPromise = undefined;
-      });
-    }
-    return this.authRefreshPromise;
   }
 
   override async beforeToolCall(ctx: ToolCallContext): Promise<ToolCallDecision | void> {
@@ -259,6 +154,7 @@ export class UserApp extends Think<Env> {
   }
 
   // ── lifecycle ───────────────────────────────────────────────────────
+  // v4 also clears credentials stored by the removed sign-in feature.
   private static readonly SEED_VERSION = 4;
 
   private async ensureReady(): Promise<void> {
@@ -270,8 +166,7 @@ export class UserApp extends Think<Env> {
         await this.workspace.rm(ROOT, { recursive: true }).catch(() => undefined);
         await this.clearMessages().catch(() => undefined);
         await wipeVersions(this.ctx.storage);
-        // Re-seeding is a workspace migration, not a sign-out: keep "auth".
-        await this.ctx.storage.delete(["versions", "deviceAuth", "devicePollAt", "freeUsage"]);
+        await this.ctx.storage.delete(["versions", "auth", "devicePollAt"]);
         // Snapshot the real prerendered pages so the agent can read the actual
         // markup it is styling.
         await this.workspace.writeFile(THEME_FILE, SEED_THEME);
@@ -350,7 +245,7 @@ export class UserApp extends Think<Env> {
   // ── RPC: state ──────────────────────────────────────────────────────
   async remixState(): Promise<RemixState> {
     await this.ensureReady();
-    return { versions: await listVersions(this.ctx.storage), auth: await this.authState() };
+    return { versions: await listVersions(this.ctx.storage) };
   }
 
   // ── RPC: agentic remix (SSE stream) ─────────────────────────────────
@@ -399,12 +294,10 @@ export class UserApp extends Think<Env> {
       try {
         await this.ensureReady();
 
-        const record = await this.ctx.storage.get<AuthRecord>("auth");
-        if (!record || record.invalid) {
+        if (!(await this.consumeFreeRestyle())) {
           send({
             kind: "done",
-            error: "Sign in with ChatGPT to remix.",
-            auth: record?.invalid ? "expired" : undefined,
+            error: "This remix has used its ten changes for today. Come back tomorrow.",
           });
           return close();
         }
@@ -443,8 +336,7 @@ export class UserApp extends Think<Env> {
           : /code was updated/i.test(String(err))
             ? "The site was just redeployed — please try again."
             : String(err instanceof Error ? err.message : err).slice(0, 200);
-        const auth = (await this.authState()).expired ? "expired" : undefined;
-        send({ kind: "done", error: message, rolledBack, auth });
+        send({ kind: "done", error: message, rolledBack });
       } finally {
         clearTimeout(watchdog);
         this.turn = undefined;
@@ -500,12 +392,11 @@ export class UserApp extends Think<Env> {
     if (this.turn) {
       return {
         versions: await listVersions(this.ctx.storage),
-        auth: await this.authState(),
         error: "A remix is running — wait for it to finish before reverting.",
       };
     }
     const ok = await materializeVersion(this.ctx.storage, this.workspace, id);
-    if (!ok) return { versions: [], auth: await this.authState(), error: "Version not found." };
+    if (!ok) return { versions: [], error: "Version not found." };
     return this.remixState();
   }
 
@@ -520,14 +411,7 @@ export class UserApp extends Think<Env> {
     await this.workspace.rm(ROOT, { recursive: true }).catch(() => undefined);
     await this.clearMessages().catch(() => undefined);
     await wipeVersions(this.ctx.storage);
-    for (const key of [
-      "versions",
-      "seedVersion",
-      "freeUsage",
-      "auth",
-      "deviceAuth",
-      "devicePollAt",
-    ]) {
+    for (const key of ["versions", "seedVersion", "freeUsage"]) {
       await this.ctx.storage.delete(key);
     }
     this.readyPromise = undefined;

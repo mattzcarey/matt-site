@@ -1,3 +1,5 @@
+export const FREE_RESTYLES_PER_DAY = 10;
+
 // The Think workspace mirrors page routes under /site/pages.
 export const ROOT = "/site";
 export const THEME_FILE = "/site/theme.css";
