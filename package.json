@@ -15,6 +15,7 @@
     "format:check": "oxfmt --check"
   },
   "dependencies": {
+    "@ai-sdk/openai": "3.0.82",
     "@astrojs/cloudflare": "^12.6.0",
     "@astrojs/mdx": "^4.3.0",
     "@astrojs/rss": "^4.0.11",

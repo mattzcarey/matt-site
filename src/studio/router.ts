@@ -77,6 +77,17 @@ export async function handleStudioApi(request: Request, env: Env): Promise<Respo
   if (path === "/api/remix/reset" && request.method === "POST") {
     return Response.json(await agent.resetSelf());
   }
+  // Sign in with ChatGPT (device-code flow). Tokens are held in the fork DO;
+  // these endpoints only start/advance the flow and never return credentials.
+  if (path === "/api/remix/auth/start" && request.method === "POST") {
+    return Response.json(await agent.startAuth());
+  }
+  if (path === "/api/remix/auth/poll" && request.method === "POST") {
+    return Response.json(await agent.pollAuth());
+  }
+  if (path === "/api/remix/auth/signout" && request.method === "POST") {
+    return Response.json(await agent.clearAuth());
+  }
   const body = (await request.json().catch(() => ({}))) as {
     prompt?: string;
     route?: string;

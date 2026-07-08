@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@ai-sdk/openai':
+        specifier: 3.0.82
+        version: 3.0.82(zod@4.4.3)
       '@astrojs/cloudflare':
         specifier: ^12.6.0
         version: 12.6.4(@types/node@20.19.11)(astro@5.13.2(@types/node@20.19.11)(jiti@1.21.7)(rollup@4.46.2)(typescript@5.9.2)(yaml@2.9.0))(jiti@1.21.7)(yaml@2.9.0)
@@ -52,7 +55,7 @@ importers:
         version: 11.1.2
       workers-ai-provider:
         specifier: ^3.3.1
-        version: 3.3.1(@ai-sdk/anthropic@3.0.92(zod@4.4.3))(@ai-sdk/openai@3.0.79(zod@4.4.3))(@ai-sdk/provider@3.0.13)(ai@6.0.217(zod@4.4.3))
+        version: 3.3.1(@ai-sdk/anthropic@3.0.92(zod@4.4.3))(@ai-sdk/openai@3.0.82(zod@4.4.3))(@ai-sdk/provider@3.0.13)(ai@6.0.217(zod@4.4.3))
       zod:
         specifier: ^4.0.0
         version: 4.4.3
@@ -184,6 +187,12 @@ packages:
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
 
+  '@ai-sdk/openai@3.0.82':
+    resolution: {integrity: sha512-Gn1YliuNMneXoBmuLX1kH/e5SR/VnU9FXLvJ8WyiV61Noo+wPdE4nuzxRGt3lfV6rla1wyCb1syV4jU0A310ew==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
+
   '@ai-sdk/provider-utils@4.0.34':
     resolution: {integrity: sha512-VL3tE0RV1ZwrtC8grTfcveFoyy9X96blfnRzIx5ayeGlCyTKpsZ4U4Ej3XpjOppAyAXKNflYSHAktOHE6gTLiw==}
     engines: {node: '>=18'}
@@ -192,6 +201,12 @@ packages:
 
   '@ai-sdk/provider-utils@4.0.35':
     resolution: {integrity: sha512-bjYld/2KGPLt78kpqbya+fD4LYS7BqVQJyUjE3qAHrYB0FR2Q90BaWEVIBZaguTWXf/A8L6uG1zO1v9TxVlGWg==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
+
+  '@ai-sdk/provider-utils@4.0.37':
+    resolution: {integrity: sha512-VG4tpVXCuzm21U9xjg05BCMZnjZOazC72+MxBkLAa7hCKsnqNt542GYWUUqwmHSczJwgbSXN8UvaNgSerUaKdw==}
     engines: {node: '>=18'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
@@ -4106,6 +4121,13 @@ snapshots:
       '@ai-sdk/provider': 3.0.13
       '@ai-sdk/provider-utils': 4.0.34(zod@4.4.3)
       zod: 4.4.3
+    optional: true
+
+  '@ai-sdk/openai@3.0.82(zod@4.4.3)':
+    dependencies:
+      '@ai-sdk/provider': 3.0.13
+      '@ai-sdk/provider-utils': 4.0.37(zod@4.4.3)
+      zod: 4.4.3
 
   '@ai-sdk/provider-utils@4.0.34(zod@4.4.3)':
     dependencies:
@@ -4115,6 +4137,13 @@ snapshots:
       zod: 4.4.3
 
   '@ai-sdk/provider-utils@4.0.35(zod@4.4.3)':
+    dependencies:
+      '@ai-sdk/provider': 3.0.13
+      '@standard-schema/spec': 1.1.0
+      eventsource-parser: 3.1.0
+      zod: 4.4.3
+
+  '@ai-sdk/provider-utils@4.0.37(zod@4.4.3)':
     dependencies:
       '@ai-sdk/provider': 3.0.13
       '@standard-schema/spec': 1.1.0
@@ -4447,7 +4476,7 @@ snapshots:
   '@cloudflare/think@0.12.1(@ai-sdk/provider@3.0.13)(@modelcontextprotocol/sdk@1.29.0(@cfworker/json-schema@4.1.1)(zod@4.4.3))(agents@0.17.3(@babel/core@8.0.1)(@babel/runtime@7.29.7)(@cloudflare/workers-types@4.20260701.1)(ai@6.0.217(zod@4.4.3))(chat@4.32.0(ai@6.0.217(zod@4.4.3))(zod@4.4.3))(just-bash@3.0.2)(react@19.2.7)(rolldown@1.1.3)(vite@6.3.5(@types/node@20.19.11)(jiti@1.21.7)(yaml@2.9.0))(zod@4.4.3))(ai@6.0.217(zod@4.4.3))(react@19.2.7)(vite@6.3.5(@types/node@20.19.11)(jiti@1.21.7)(yaml@2.9.0))(zod@4.4.3)':
     dependencies:
       '@ai-sdk/anthropic': 3.0.92(zod@4.4.3)
-      '@ai-sdk/openai': 3.0.79(zod@4.4.3)
+      '@ai-sdk/openai': 3.0.82(zod@4.4.3)
       '@cloudflare/codemode': 0.4.2(@modelcontextprotocol/sdk@1.29.0(@cfworker/json-schema@4.1.1)(zod@4.4.3))(ai@6.0.217(zod@4.4.3))(zod@4.4.3)
       '@cloudflare/shell': 0.4.1(@modelcontextprotocol/sdk@1.29.0(@cfworker/json-schema@4.1.1)(zod@4.4.3))(ai@6.0.217(zod@4.4.3))(zod@4.4.3)
       agents: 0.17.3(@babel/core@8.0.1)(@babel/runtime@7.29.7)(@cloudflare/workers-types@4.20260701.1)(ai@6.0.217(zod@4.4.3))(chat@4.32.0(ai@6.0.217(zod@4.4.3))(zod@4.4.3))(just-bash@3.0.2)(react@19.2.7)(rolldown@1.1.3)(vite@6.3.5(@types/node@20.19.11)(jiti@1.21.7)(yaml@2.9.0))(zod@4.4.3)
@@ -4457,7 +4486,7 @@ snapshots:
       create-think: 0.1.1
       just-bash: 3.0.2
       smol-toml: 1.7.0
-      workers-ai-provider: 3.3.1(@ai-sdk/anthropic@3.0.92(zod@4.4.3))(@ai-sdk/openai@3.0.79(zod@4.4.3))(@ai-sdk/provider@3.0.13)(ai@6.0.217(zod@4.4.3))
+      workers-ai-provider: 3.3.1(@ai-sdk/anthropic@3.0.92(zod@4.4.3))(@ai-sdk/openai@3.0.82(zod@4.4.3))(@ai-sdk/provider@3.0.13)(ai@6.0.217(zod@4.4.3))
       yargs: 18.0.0
       zod: 4.4.3
     optionalDependencies:
@@ -8290,13 +8319,13 @@ snapshots:
     optionalDependencies:
       '@ai-sdk/openai': 3.0.79(zod@4.4.3)
 
-  workers-ai-provider@3.3.1(@ai-sdk/anthropic@3.0.92(zod@4.4.3))(@ai-sdk/openai@3.0.79(zod@4.4.3))(@ai-sdk/provider@3.0.13)(ai@6.0.217(zod@4.4.3)):
+  workers-ai-provider@3.3.1(@ai-sdk/anthropic@3.0.92(zod@4.4.3))(@ai-sdk/openai@3.0.82(zod@4.4.3))(@ai-sdk/provider@3.0.13)(ai@6.0.217(zod@4.4.3)):
     dependencies:
       '@ai-sdk/provider': 3.0.13
       ai: 6.0.217(zod@4.4.3)
     optionalDependencies:
       '@ai-sdk/anthropic': 3.0.92(zod@4.4.3)
-      '@ai-sdk/openai': 3.0.79(zod@4.4.3)
+      '@ai-sdk/openai': 3.0.82(zod@4.4.3)
 
   wrangler@4.106.0(@cloudflare/workers-types@4.20260701.1):
     dependencies:
