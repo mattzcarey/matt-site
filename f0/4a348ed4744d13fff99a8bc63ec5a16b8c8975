@@ -1,0 +1,39 @@
+src/bots.ts
+  s_033b1907c4adc4::t_4641e1653bd379 1-89
+src/consts.ts
+  s_033b1907c4adc4::t_a19704cb3e3695 2-3
+src/lib/md-pages.ts
+  s_033b1907c4adc4::t_8c03f609c09fe3 1-180
+src/pages/llms-full.txt.ts
+  s_033b1907c4adc4::t_66188a7ad8718c 1-17
+src/pages/llms.txt.ts
+  s_033b1907c4adc4::t_a2715ccd9f3db9 1-34
+src/pages/md/blog/[...slug].ts
+  s_033b1907c4adc4::t_b75279ce73e291 1-15
+src/pages/md/blog/index.md.ts
+  s_033b1907c4adc4::t_60adf745241fd8 1-8
+src/pages/md/index.md.ts
+  s_033b1907c4adc4::t_0c028b6537280b 1-7
+src/pages/md/projects.md.ts
+  s_033b1907c4adc4::t_6203b1ee2beefe 1-7
+src/pages/md/work.md.ts
+  s_033b1907c4adc4::t_13cf02f6bb7ae2 1-7
+src/studio/app-worker.ts
+  s_033b1907c4adc4::t_9b08c946ffa4df 1-109
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "f04a348ed4744d13fff99a8bc63ec5a16b8c8975",
+  "prompts": {},
+  "sessions": {
+    "s_033b1907c4adc4": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "019f6a78-705f-715b-b526-1f7acda96b79",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Matt Carey <mcarey@cloudflare.com>"
+    }
+  }
+}
