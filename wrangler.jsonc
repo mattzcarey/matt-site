@@ -10,6 +10,7 @@
     "run_worker_first": true,
   },
   "ai": { "binding": "AI" },
+  "worker_loaders": [{ "binding": "LOADER" }],
   "durable_objects": {
     "bindings": [{ "name": "USERAPP", "class_name": "UserApp" }],
   },

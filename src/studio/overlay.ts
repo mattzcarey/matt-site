@@ -99,7 +99,9 @@ __RX_HOT__
     if(!forked()){
       panel.innerHTML='<h3>Remix this site</h3>'
         +'<p class="muted">Create a private version with GLM-4.7-Flash. Only you see the changes.</p>'
-        +'<button class="act" id="rx-start">Remix this site</button>';
+        +'<button class="act" id="rx-start">Remix this site</button>'
+        +'<div style="margin-top:14px;padding-top:12px;border-top:1px solid rgba(115,115,115,.25);text-align:right">'
+        +'<a href="?view=llm" style="font-size:12px">View as LLM</a></div>';
       $('rx-start').onclick=function(){ setCookie(forkId()); render(); };
       return;
     }
@@ -109,6 +111,7 @@ __RX_HOT__
       +'<div id="rx-status" class="muted" style="margin-top:8px"></div>'
       +'<h4>History</h4><div id="rx-log" class="muted">Loading...</div>'
       +'<div style="margin-top:14px;padding-top:12px;border-top:1px solid rgba(115,115,115,.25);text-align:right">'
+      +'<a href="?view=llm" style="font-size:12px;margin-right:12px">View as LLM</a>'
       +'<a href="#" id="rx-reset" style="font-size:12px">Discard remix</a></div>';
     $('rx-gen').onclick=generate;
     $('rx-reset').onclick=function(e){ e.preventDefault(); reset(); };

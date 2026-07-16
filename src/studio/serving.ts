@@ -6,16 +6,20 @@
 // survival, hashed-CSS href rebase, noindex — so nothing depends on what any
 // model wrote.
 
+import type { AppActive } from "./app-worker";
 import { appOverlay } from "./overlay";
 
 export interface ServedPage {
-  source: "fork" | "assets";
+  // "app" = HTML produced by the fork's dynamic app worker at serve time.
+  source: "fork" | "assets" | "app";
   /** Fork-served page HTML (present when source is "fork"). */
   html?: string;
   /** Committed theme CSS; empty string = original site. */
   css: string;
   /** Cache-busting version for /remix-assets/fork.js, when the fork has one. */
   forkJsVersion?: string;
+  /** The fork's promoted dynamic app worker, when it has one. */
+  app?: AppActive;
 }
 
 /** Normalize a route or pathname to its canonical ".../index.html" form. */
@@ -89,7 +93,7 @@ export async function applyInvariants(
     });
   }
 
-  if (served.source === "fork") {
+  if (served.source === "fork" || served.source === "app") {
     rewriter = rewriter
       .on('meta[name="robots"]', {
         element(el) {

@@ -210,6 +210,34 @@ export async function materializeVersion(
   return true;
 }
 
+/**
+ * Materialize only the paths under `prefix` from a version: restore its files
+ * there and delete workspace files under the prefix it doesn't contain. Used
+ * to drop a failed app-worker edit while keeping the turn's other changes.
+ */
+export async function materializePaths(
+  storage: DurableObjectStorage,
+  ws: WorkspaceFiles,
+  id: string,
+  prefix: string,
+): Promise<boolean> {
+  const manifest = await getManifest(storage, id);
+  if (!manifest) return false;
+  const existing = await ws.glob(`${prefix}/**`);
+  for (const entry of existing) {
+    if (entry.type !== "file") continue;
+    if (!(entry.path in manifest.files)) await ws.deleteFile(entry.path).catch(() => false);
+  }
+  for (const [path, hash] of Object.entries(manifest.files)) {
+    if (!path.startsWith(`${prefix}/`)) continue;
+    const content = await readBlob(storage, hash);
+    if (content === null) continue;
+    const current = await ws.readFile(path).catch(() => null);
+    if (current !== content) await ws.writeFile(path, content);
+  }
+  return true;
+}
+
 /** Restore the workspace to the committed (current) version. */
 export async function rollbackToCurrent(
   storage: DurableObjectStorage,

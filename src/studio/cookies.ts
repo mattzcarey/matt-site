@@ -1,6 +1,6 @@
 const FORK_COOKIE = "remix_fork";
 
-function getCookie(request: Request, name: string): string | null {
+export function getCookie(request: Request, name: string): string | null {
   const part = (request.headers.get("Cookie") ?? "")
     .split(";")
     .find((value) => value.trim().startsWith(`${name}=`));
