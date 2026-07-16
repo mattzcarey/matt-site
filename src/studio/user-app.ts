@@ -15,7 +15,18 @@ import {
   type TurnConfig,
 } from "@cloudflare/think";
 import {
+  collectAppCode,
+  isAppCode,
+  validateAppWorker,
+  type AppActive,
+  type AppCode,
+} from "./app-worker";
+import {
   AGENT_SYSTEM,
+  APP_DIR,
+  APP_ENTRY,
+  APP_KV_MAX_KEYS,
+  APP_KV_MAX_VALUE,
   FORK_JS_FILE,
   FREE_RESTYLES_PER_DAY,
   PAGES_DIR,
@@ -30,15 +41,27 @@ import {
   ORIGINAL_ID,
   commitVersion,
   currentManifest,
+  currentVersionId,
   getManifest,
   listVersions,
   manifestFile,
+  materializePaths,
   materializeVersion,
   rollbackToCurrent,
   seedOriginalVersion,
   wipeVersions,
   type VersionSummary,
 } from "./versions";
+
+const APP_ACTIVE_KEY = "appActive";
+const APP_KV_PREFIX = "app-kv/";
+
+// Outcome of the app-worker portion of a turn.
+type AppSettle =
+  | { status: "none" }
+  | { status: "promoted"; code: AppCode }
+  | { status: "removed" }
+  | { status: "failed"; error: string };
 
 export interface RemixState {
   versions: VersionSummary[];
@@ -223,16 +246,39 @@ export class UserApp extends Think<Env> {
     const forkJsHash = current.files[FORK_JS_FILE];
     const forkJsVersion = forkJsHash ? forkJsHash.slice(0, 8) : undefined;
 
+    const app = await this.ctx.storage.get<AppActive>(APP_ACTIVE_KEY);
+
     const page = `${PAGES_DIR}${normalizeRoute(pathname)}`;
     const pageHash = current.files[page];
     if (pageHash) {
       const original = await getManifest(storage, ORIGINAL_ID);
       if (pageHash !== original?.files[page]) {
         const html = await manifestFile(storage, current, page);
-        if (html !== null) return { source: "fork", html, css, forkJsVersion };
+        if (html !== null) return { source: "fork", html, css, forkJsVersion, app };
       }
     }
-    return { source: "assets", css, forkJsVersion };
+    return { source: "assets", css, forkJsVersion, app };
+  }
+
+  // ── RPC: app-worker key/value state (via the SYSTEM broker only) ────
+  async appKvGet(key: string): Promise<string | null> {
+    return (await this.ctx.storage.get<string>(APP_KV_PREFIX + key)) ?? null;
+  }
+
+  async appKvPut(key: string, value: string): Promise<{ ok: boolean; error?: string }> {
+    if (value.length > APP_KV_MAX_VALUE) {
+      return { ok: false, error: `Value too large (max ${APP_KV_MAX_VALUE} bytes).` };
+    }
+    const existing = await this.ctx.storage.list({ prefix: APP_KV_PREFIX });
+    if (!existing.has(APP_KV_PREFIX + key) && existing.size >= APP_KV_MAX_KEYS) {
+      return { ok: false, error: `Too many keys (max ${APP_KV_MAX_KEYS}).` };
+    }
+    await this.ctx.storage.put(APP_KV_PREFIX + key, value);
+    return { ok: true };
+  }
+
+  async appKvDelete(key: string): Promise<void> {
+    await this.ctx.storage.delete(APP_KV_PREFIX + key);
   }
 
   // ── RPC: live workspace reads (mid-turn previews, /remix-assets) ────
@@ -307,11 +353,26 @@ export class UserApp extends Think<Env> {
         await this.runToolLoop(prompt, route, turn, abort.signal);
         await turn.queue;
 
+        // Generated server code must load and answer a request before it can
+        // be promoted; a broken app worker is repaired or dropped, never served.
+        const appSettle = await this.settleAppEdit(turn, abort.signal);
+        await turn.queue;
+
         this.turn = undefined;
         const manifest = turn.changed.size
           ? await commitVersion(this.ctx.storage, this.workspace, prompt.slice(0, 72))
           : null;
         if (manifest) {
+          if (appSettle.status === "promoted") {
+            await this.ctx.storage.put(APP_ACTIVE_KEY, {
+              versionId: manifest.id,
+              ...appSettle.code,
+            } satisfies AppActive);
+          } else if (appSettle.status === "removed") {
+            await this.ctx.storage.delete(APP_ACTIVE_KEY);
+          }
+          // "failed": the app edit was rolled back to the committed version's
+          // files, so the existing appActive pointer (if any) stays valid.
           send({
             kind: "done",
             ok: true,
@@ -320,7 +381,16 @@ export class UserApp extends Think<Env> {
               short: manifest.id.slice(0, 7),
               message: manifest.message,
             },
+            app:
+              appSettle.status === "none"
+                ? undefined
+                : {
+                    promoted: appSettle.status === "promoted",
+                    error: appSettle.status === "failed" ? appSettle.error : undefined,
+                  },
           });
+        } else if (appSettle.status === "failed") {
+          send({ kind: "done", error: `The app code didn't work: ${appSettle.error}` });
         } else {
           send({ kind: "done", error: "That didn't change the remix. Try rephrasing." });
         }
@@ -376,6 +446,69 @@ export class UserApp extends Think<Env> {
     if (error) throw new Error(error);
   }
 
+  // Validate a turn's /site/app edits: load the code in a throwaway isolate
+  // and smoke-test it, giving the model up to two repair passes. A still-
+  // broken app is rolled back to the committed version's files so the turn's
+  // styling work survives while broken code never goes live.
+  private async settleAppEdit(turn: ActiveTurn, signal: AbortSignal): Promise<AppSettle> {
+    const touched = [...turn.changed].some((p) => p.startsWith(`${APP_DIR}/`));
+    if (!touched) return { status: "none" };
+
+    const dropAppEdit = async () => {
+      const currentId = await currentVersionId(this.ctx.storage);
+      if (!currentId) return;
+      turn.preparingWorkspace++;
+      try {
+        await materializePaths(this.ctx.storage, this.workspace, currentId, APP_DIR);
+      } finally {
+        turn.preparingWorkspace--;
+      }
+    };
+
+    if (!this.env.LOADER) {
+      await dropAppEdit();
+      return { status: "failed", error: "Dynamic app code is not available right now." };
+    }
+    const system = this.ctx.exports.SystemBroker({ props: { forkId: this.name } });
+
+    let error = "";
+    for (let attempt = 0; attempt <= 2; attempt++) {
+      if (attempt > 0) {
+        turn.send({ kind: "status", text: "Fixing the app worker..." });
+        let chatError: string | undefined;
+        await this.chat(
+          `Your app worker failed to load: ${error}\nFix the files under ${APP_DIR} now (plain JavaScript ES modules only, entrypoint ${APP_ENTRY}), then finish briefly.`,
+          {
+            onStart: () => {},
+            onEvent: (chunk) => turn.send({ kind: "event", chunk }),
+            onDone: () => {},
+            onError: (message) => {
+              chatError = message;
+            },
+          },
+          { signal },
+        );
+        if (signal.aborted) break;
+        if (chatError) {
+          error = chatError;
+          break;
+        }
+      }
+      const code = await collectAppCode(this.workspace);
+      if (code === null) return { status: "removed" };
+      if (isAppCode(code)) {
+        const verdict = await validateAppWorker(this.env, system, code);
+        if (verdict.ok) return { status: "promoted", code };
+        error = verdict.error;
+      } else {
+        error = code.error;
+      }
+    }
+
+    await dropAppEdit();
+    return { status: "failed", error };
+  }
+
   private buildLoopPrompt(request: string, route: string): string {
     return [
       `REQUEST: ${request}`,
@@ -397,7 +530,24 @@ export class UserApp extends Think<Env> {
     }
     const ok = await materializeVersion(this.ctx.storage, this.workspace, id);
     if (!ok) return { versions: [], error: "Version not found." };
+    await this.repromoteApp(id);
     return this.remixState();
+  }
+
+  // After a revert, the served app must match the reverted-to files: re-load
+  // and re-validate them, or clear the app if the version has none (or it no
+  // longer loads).
+  private async repromoteApp(versionId: string): Promise<void> {
+    const code = await collectAppCode(this.workspace);
+    if (code !== null && isAppCode(code) && this.env.LOADER) {
+      const system = this.ctx.exports.SystemBroker({ props: { forkId: this.name } });
+      const verdict = await validateAppWorker(this.env, system, code);
+      if (verdict.ok) {
+        await this.ctx.storage.put(APP_ACTIVE_KEY, { versionId, ...code } satisfies AppActive);
+        return;
+      }
+    }
+    await this.ctx.storage.delete(APP_ACTIVE_KEY);
   }
 
   // ── RPC: discard the whole fork ─────────────────────────────────────
@@ -411,9 +561,11 @@ export class UserApp extends Think<Env> {
     await this.workspace.rm(ROOT, { recursive: true }).catch(() => undefined);
     await this.clearMessages().catch(() => undefined);
     await wipeVersions(this.ctx.storage);
-    for (const key of ["versions", "seedVersion", "freeUsage"]) {
+    for (const key of ["versions", "seedVersion", "freeUsage", APP_ACTIVE_KEY]) {
       await this.ctx.storage.delete(key);
     }
+    const appKv = await this.ctx.storage.list({ prefix: APP_KV_PREFIX });
+    for (const key of appKv.keys()) await this.ctx.storage.delete(key);
     this.readyPromise = undefined;
     return { ok: true };
   }
