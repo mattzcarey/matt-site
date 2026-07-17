@@ -8,17 +8,15 @@ tags:
   - cloudflare
 ---
 
-> Give your agent a computer. Just do not make the computer the agent.
+When I start a Claude Code on my laptop, it works on files and maybe runs a dev server. When I close the lid the agent might disappear but my laptop and its disk are still there (obs).
 
-Most coding agents today run the other way around. The agent is a process that comes and goes. The computer is the durable infrastructure that stores its sessions and files.
-
-That is what happens on my laptop. I start an agent, it works on files, and then I close the lid. The agent disappears but my laptop and its disk are still there. In the cloud the laptop becomes a VPS, sandbox, or long-lived container. The agent is still a guest.
+To run these agents in the cloud, my laptop becomes a VPS, sandbox, or container. The agent is free to be started and maybe stopped when done.
 
 This is a perfectly sensible way to build one agent. I have a Raspberry Pi at home running this setup and it works great.
 
 It gets awkward when you want to give every user an agent. Maybe more than one. They should wake for events, run in the background, and remember jobs that take days. Keeping a Linux machine around for each one just in case it needs shell access feels like the wrong shape.
 
-One pattern we are looking at is to invert it. Make the agent durable and let the computers it uses be ephemeral.
+Maybe we could make the agent durable and let the computers it uses be ephemeral.
 
 ## Split the harness from the tools
 
