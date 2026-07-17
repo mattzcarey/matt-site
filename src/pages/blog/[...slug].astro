@@ -6,11 +6,12 @@ import NewsletterSignup from '../../components/newsletter.astro';
 import Sidebar from '../../components/Sidebar.astro';
 import ElevenLabsAudioNative from '../../components/voicePlayer.astro';
 import Layout from '../../layouts/Layout.astro';
+import { blogHtmlPath, blogSlug } from '../../lib/blog-routes';
 
 export async function getStaticPaths() {
   const posts = await getCollection('blog');
   return posts.map((post) => ({
-    params: { slug: post.id },
+    params: { slug: blogSlug(post) },
     props: post,
   }));
 }
@@ -21,7 +22,7 @@ const post = Astro.props;
 const { Content } = await render(post);
 
 const baseUrl = 'https://mattzcarey.com';
-const canonicalUrl = `${baseUrl}/blog/${post.id}`;
+const canonicalUrl = `${baseUrl}${blogHtmlPath(post)}`;
 
 const title = `${post.data.title} | Matt's Blog`;
 const description =

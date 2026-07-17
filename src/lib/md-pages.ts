@@ -1,7 +1,8 @@
 // Single source of truth for page content shared by the rendered .astro pages
-// and the /md/* markdown endpoints (the bot/LLM-facing experience).
+// and their public `.md` twins (the bot/LLM-facing experience).
 
 import type { CollectionEntry } from "astro:content";
+import { blogHtmlPath, blogMarkdownPath } from "./blog-routes";
 
 export const SITE_URL = "https://mattzcarey.com";
 
@@ -136,7 +137,7 @@ function isoDate(date: Date): string {
 
 export function homeMd(): string {
   const links = home.socials.map((s) => `- [${s.label}](${s.href})`).join("\n");
-  return `# ${home.name}\n\n${home.intro.replace("\n", " ")}\n\nAI Engineer and Community Builder based between London and Lisbon.\n\nFind me on:\n\n${links}\n\nMore: [Blog](${SITE_URL}/md/blog/index.md) · [Projects](${SITE_URL}/md/projects.md) · [Work](${SITE_URL}/md/work.md)\n`;
+  return `# ${home.name}\n\n${home.intro.replace("\n", " ")}\n\nAI Engineer and Community Builder based between London and Lisbon.\n\nFind me on:\n\n${links}\n\nMore: [Blog](${SITE_URL}/blog.md) · [Projects](${SITE_URL}/projects.md) · [Work](${SITE_URL}/work.md)\n`;
 }
 
 export function projectsMd(): string {
@@ -158,7 +159,9 @@ export function workMd(): string {
 
 export function blogIndexMd(posts: Post[]): string {
   const items = sortPosts(posts)
-    .map((p) => `- ${isoDate(p.data.pubDate)} — [${p.data.title}](${SITE_URL}/md/blog/${p.id})`)
+    .map(
+      (p) => `- ${isoDate(p.data.pubDate)} — [${p.data.title}](${SITE_URL}${blogMarkdownPath(p)})`,
+    )
     .join("\n");
   return `# Posts\n\n${items}\n\nAll medium posts: https://medium.com/@mattzcarey\n`;
 }
@@ -171,7 +174,7 @@ export function postMd(post: Post): string {
       ? [`description: "${post.data.description.replaceAll('"', '\\"')}"`]
       : []),
     `pubDate: ${isoDate(post.data.pubDate)}`,
-    `canonical: ${SITE_URL}/blog/${post.id}/`,
+    `canonical: ${SITE_URL}${blogHtmlPath(post)}`,
     "---",
     "",
     post.body ?? "",

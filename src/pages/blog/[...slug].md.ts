@@ -1,12 +1,11 @@
 import type { APIRoute } from "astro";
 import { getCollection } from "astro:content";
-import { postMd } from "../../../lib/md-pages";
+import { blogSlug } from "../../lib/blog-routes";
+import { postMd } from "../../lib/md-pages";
 
-// Legacy `/md/blog/*` compatibility route. Public Markdown twins live at
-// `/blog/<slug>.md`.
 export async function getStaticPaths() {
   const posts = await getCollection("blog");
-  return posts.map((post) => ({ params: { slug: post.id }, props: { post } }));
+  return posts.map((post) => ({ params: { slug: blogSlug(post) }, props: { post } }));
 }
 
 export const GET: APIRoute = ({ props }) =>

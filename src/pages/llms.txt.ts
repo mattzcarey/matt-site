@@ -1,5 +1,6 @@
 import type { APIRoute } from "astro";
 import { getCollection } from "astro:content";
+import { blogMarkdownPath } from "../lib/blog-routes";
 import { SITE_URL, sortPosts } from "../lib/md-pages";
 
 export const GET: APIRoute = async () => {
@@ -11,16 +12,16 @@ export const GET: APIRoute = async () => {
     "",
     "## Pages",
     "",
-    `- [Home](${SITE_URL}/md/index.md)`,
-    `- [Projects](${SITE_URL}/md/projects.md)`,
-    `- [Work](${SITE_URL}/md/work.md)`,
-    `- [Blog index](${SITE_URL}/md/blog/index.md)`,
+    `- [Home](${SITE_URL}/index.md)`,
+    `- [Projects](${SITE_URL}/projects.md)`,
+    `- [Work](${SITE_URL}/work.md)`,
+    `- [Blog index](${SITE_URL}/blog.md)`,
     "",
     "## Blog posts",
     "",
     ...posts.map(
       (p) =>
-        `- [${p.data.title}](${SITE_URL}/md/blog/${p.id})${p.data.description ? `: ${p.data.description}` : ""}`,
+        `- [${p.data.title}](${SITE_URL}${blogMarkdownPath(p)})${p.data.description ? `: ${p.data.description}` : ""}`,
     ),
     "",
     "## Optional",

@@ -13,6 +13,7 @@
 
 import { getAgentByName } from "agents";
 import { classifyBot, llmShell, mdPathFor } from "./bots";
+import { legacyBlogRedirect } from "./lib/blog-routes";
 import { PASSTHROUGH_HEADER, fetchAppWorker, loadAppWorker } from "./studio/app-worker";
 import { getCookie } from "./studio/cookies";
 import { forkIdFrom, handleRemixAsset, handleStudioApi } from "./studio/router";
@@ -24,6 +25,13 @@ export { UserApp } from "./studio/user-app";
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
+
+    if (request.method === "GET" || request.method === "HEAD") {
+      const destination = legacyBlogRedirect(url.pathname);
+      if (destination) {
+        return Response.redirect(new URL(destination, url).toString(), 301);
+      }
+    }
 
     // The studio used to live at /remix; the remix is in-place now.
     if (url.pathname === "/remix" || url.pathname.startsWith("/remix/")) {
@@ -66,7 +74,7 @@ export default {
           // The SAME page URL serves markdown to bots and HTML to humans, so
           // this response must never enter a shared cache — no Vary on
           // User-Agent would reliably split it. Keep it uncacheable; the
-          // markdown twin under /md/* is separately cacheable if a bot wants it.
+          // public `.md` twin is separately cacheable if a bot wants it.
           const headers = new Headers(mdRes.headers);
           headers.set("content-type", "text/markdown; charset=utf-8");
           headers.set("cache-control", "private, no-store");

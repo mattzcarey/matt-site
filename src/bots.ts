@@ -1,8 +1,8 @@
 // Bot classification and the markdown ("LLM view") experience.
 //
 // Bots never reach the remix/fork pipeline: AI crawlers get the raw markdown
-// built under /md/*, search indexers get the normal prerendered HTML, and
-// humans can opt in via the `view=llm` cookie (`?view=llm` / `?view=human`).
+// twin at the page URL plus `.md`, search indexers get the normal prerendered
+// HTML, and humans can opt in via the `view=llm` cookie.
 
 export type BotExperience = "markdown" | "html";
 
@@ -41,16 +41,16 @@ export function classifyBot(request: Request): BotExperience | null {
   return null;
 }
 
-// Page → markdown asset built by the /md/* Astro endpoints. Null means the
-// path has no markdown twin (feeds, assets, 404s) and passes through.
+// Page → public `.md` twin. Null means the path has no markdown twin
+// (feeds, assets, 404s) and passes through.
 export function mdPathFor(pathname: string): string | null {
   const p = pathname.replace(/\/+$/, "") || "/";
-  if (p === "/") return "/md/index.md";
-  if (p === "/blog") return "/md/blog/index.md";
-  if (p === "/projects") return "/md/projects.md";
-  if (p === "/work") return "/md/work.md";
-  const post = p.match(/^\/blog\/([a-zA-Z0-9._-]+\.md)$/);
-  if (post) return `/md/blog/${post[1]}`;
+  if (p === "/") return "/index.md";
+  if (p === "/blog") return "/blog.md";
+  if (p === "/projects") return "/projects.md";
+  if (p === "/work") return "/work.md";
+  const post = p.match(/^\/blog\/([a-zA-Z0-9_-]+)$/);
+  if (post) return `/blog/${post[1]}.md`;
   return null;
 }
 
