@@ -47,7 +47,7 @@ The workspace belongs to the agent, not to one of its tools.
 
 If a container owns the filesystem, write a file through Bash and another tool might not see it. If the container dies, the agent loses its progress. Big sad.
 
-Instead, the computer borrows the files it needs and returns its changes when it is done. It can disappear without taking the job with it.
+Instead, the computer borrows the files it needs and returns its changes when it is done. It can disappear without taking the job state with it.
 
 ## One experiment with this pattern
 
@@ -55,17 +55,15 @@ At Cloudflare, we are testing one implementation in [`@cloudflare/workspace`](ht
 
 Cloudflare Workspace keeps a virtual filesystem in SQLite inside a Durable Object. A Worker backend runs [just-bash](https://github.com/vercel-labs/just-bash) in an isolate for cheap textual tools. A container backend exposes the same workspace through FUSE when the agent needs Linux.
 
-Other versions could use a VM pool, object snapshots, or Postgres.
-
-## How much work needs Linux?
+## How much work needs a Linux box?
 
 Less than I expected.
 
 Take a normal coding task. The agent reads files, searches for a symbol, changes a few lines, checks the diff, and writes some notes. `read`, `write`, and `edit` can act directly on the durable workspace. No container. No sync.
 
-Git operations can be APIs. Parsers and bundlers can run inside an isolate. That covers a surprisingly large chunk of a coding agent's day.
+Git operations can just call APIs. Parsers and bundlers can run inside an isolate. That covers a surprisingly large chunk of a coding agent's day.
 
-Linux is still there for native binaries or whatever weird thing an arbitrary repository needs. Start it when the agent needs it, return the changes, then let it go.
+Linux is still there for native binaries or whatever weird thing an arbitrary repository needs. Start it when the agent needs it, return the changes, then let it go. The agent is normally free to pick the backend it needs
 
 ## Where this fits
 
