@@ -30,7 +30,7 @@ Anthropic split the harness from where code runs. State has to survive when an e
 
 The harness owns durable identity and state. It sleeps when idle and wakes for a message, webhook, or schedule.
 
-The tools are its hands. Reading a file might be a function over a durable store. A short script could run in an isolate. A strange build failure might need a container with a full Linux userspace.
+The tools are its hands. Reading a file might be a function over a durable store. A short script could run in an isolate. A build tool might need a container with a full Linux userspace.
 
 ```text
 Durable agent / harness
@@ -43,11 +43,11 @@ Durable agent / harness
                                       return changes
 ```
 
-The workspace belongs to the agent, not to one of its tools.
+The workspace belongs to the agent, not to one (or all) of its tools.
 
-If a container owns the filesystem, write a file through Bash and another tool might not see it. If the container dies, the agent loses its progress. Big sad.
+If a container owns the filesystem, reads and writes files. If the container dies or becomes disconnected from the agent, we loose its progress. Big sad.
 
-Instead, the computer borrows the files it needs and returns its changes when it is done. It can disappear without taking the job state with it.
+Instead, the container spins up with the workspace loaded and syncs its changes back to the agent when done. The agent owns everything.
 
 ## One experiment with this pattern
 
@@ -61,15 +61,17 @@ Less than I expected.
 
 Take a normal coding task. The agent reads files, searches for a symbol, changes a few lines, checks the diff, and writes some notes. `read`, `write`, and `edit` can act directly on the durable workspace. No container. No sync.
 
-Git operations can just call APIs. Parsers and bundlers can run inside an isolate. That covers a surprisingly large chunk of a coding agent's day.
+Git operations can just call APIs (eg. Cloudflare Artifacts). Parsers and bundlers can run inside an isolate. That covers a surprisingly large chunk of a coding agent's tasks.
 
-Linux is still there for native binaries or whatever weird thing an arbitrary repository needs. Start it when the agent needs it, return the changes, then let it go. The agent is normally free to pick the backend it needs
+A container is still there for native binaries or running a dev server. Start it when the agent needs it, return the changes, then let it go.
+
+The agent is free to pick the backend it needs
 
 ## Where this fits
 
 For one local agent, a durable computer is often the best design. The files are already there and there is no distributed system to operate.
 
-The inversion makes more sense when agents outlive requests, wake in response to events, or run in large numbers. It can also make a useful security boundary: credentials stay with the harness while a tool receives limited files and network access.
+The inversion makes more sense when agents outlive requests, wake in response to events, or run in large numbers. It can also make a useful security boundary: credentials stay with the harness (agent) while a tool receives limited files and network access.
 
 You have to sync files, recover from partial failures, and decide what happens when two tools write at once. This pattern is useful when durability, scale, or isolation pays for that extra machinery.
 
