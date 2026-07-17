@@ -1,0 +1,31 @@
+src/bots.ts
+  s_afe9dbc6b0b881::t_cadf75197424b4 4-5,44-45,48-53
+src/lib/md-pages.ts
+  s_afe9dbc6b0b881::t_4a6affe1da72bc 2,5,140,162-164,177
+src/pages/blog/[...slug].astro
+  s_afe9dbc6b0b881::t_811e24a6579584 9,14,25
+src/pages/blog/index.astro
+  s_afe9dbc6b0b881::t_1cb2c4190fc95f 6,35
+src/pages/llms.txt.ts
+  s_afe9dbc6b0b881::t_7cad6cf53dd357 3,15-18,24
+src/pages/rss.xml.js
+  s_afe9dbc6b0b881::t_0f7a9596ca16dc 4,14
+src/worker.ts
+  s_afe9dbc6b0b881::t_9baf00924578c2 16,29-35,77
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "fd9915ec528a40d67d5a45ad452d8cdf79d22615",
+  "prompts": {},
+  "sessions": {
+    "s_afe9dbc6b0b881": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a0263628-a56c-48c4-87b5-1b39d3bd3fe0",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Matt Carey <mcarey@cloudflare.com>"
+    }
+  }
+}
