@@ -36,7 +36,7 @@ The tools are its hands. And these tools can be run across many backend. Reading
 Durable agent / harness
 
   read / write / edit -------------> durable workspace
-  execute(command)
+  bash
     |-- isolate -------------------> same workspace
     `-- Linux computer ------------> borrow files
                                       run
@@ -60,8 +60,6 @@ Cloudflare Workspace keeps a virtual filesystem in SQLite inside a Durable Objec
 Less than I expected.
 
 Take a normal coding task. The agent reads files, searches for a symbol, changes a few lines, checks the diff, and writes some notes. `read`, `write`, and `edit` can act directly on the durable workspace. No container needed.
-
-Git operations can just call APIs (eg. Cloudflare Artifacts). Parsers and bundlers can mostly be run inside an isolate (if you are using one). That covers a surprisingly large chunk of a coding agent's tasks.
 
 A container is necessary for native binaries or running a dev server. Start it when the agent needs it, return the changes, then let it go.
 
